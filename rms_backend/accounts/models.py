@@ -23,7 +23,6 @@ class User(AbstractUser):
     is_tenant_admin = models.BooleanField(default=False)
 
 
-
 # Temp fix for superuser -- first time only
 # class User(AbstractUser):
 #     # Optional foreign key relationship to the Tenant model for superuser

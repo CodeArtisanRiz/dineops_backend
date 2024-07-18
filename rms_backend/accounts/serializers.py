@@ -16,5 +16,4 @@ class UserSerializer(serializers.ModelSerializer):
 class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
-
         fields = '__all__'  # Include all fields from the Tenant model
