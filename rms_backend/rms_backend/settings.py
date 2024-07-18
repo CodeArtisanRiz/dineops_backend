@@ -38,9 +38,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    # Django REST Framework for building APIs
     'rest_framework',
+    # Simple JWT for token-based authentication
     'rest_framework_simplejwt',
+    # Django CORS Headers for handling Cross-Origin Resource Sharing
     'corsheaders',
+    # Custom accounts app for user management
     'accounts',
 ]
 
@@ -53,7 +57,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
+    # Enable CORS (Cross-Origin Resource Sharing) for all origins
     'corsheaders.middleware.CorsMiddleware',
+    # Handle common middleware operations
     'django.middleware.common.CommonMiddleware',
 ]
 
@@ -98,14 +104,20 @@ DATABASES = {
     }
 }
 
+# Database configuration for MongoDB Atlas
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'djongo',
-#         'NAME': 'your_database_name',
+
+
+#         'ENGINE': 'djongo',  # Use the Djongo engine for MongoDB support
+#         'NAME': 'your_database_name',  # Name of your MongoDB database
 #         'CLIENT': {
-#             'host': 'your_mongo_atlas_connection_string',
-#             'username': 'your_username',
-#             'password': 'your_password',
+
+
+
+#             'host': 'your_mongo_atlas_connection_string',  # MongoDB Atlas connection string
+#             'username': 'your_username',  # MongoDB Atlas username
+#             'password': 'your_password',  # MongoDB Atlas password
 #         }
 #     }
 # }
