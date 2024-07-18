@@ -11,7 +11,7 @@ class FoodItem(models.Model):
     # Price of the food item
     price = models.DecimalField(max_digits=10, decimal_places=2)
     # Image of the food item (optional)
-    image = models.ImageField(upload_to='foods/', null=True, blank=True)
+    image = models.ImageField(upload_to='foods/images', null=True, blank=True)
 
     def __str__(self):
         return self.name
