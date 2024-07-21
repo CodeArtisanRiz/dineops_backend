@@ -1,11 +1,9 @@
-
 # Import necessary modules
 from rest_framework import viewsets
 from django.contrib.auth import get_user_model
 from .models import Tenant
 from .serializers import UserSerializer, TenantSerializer
 from rest_framework.permissions import IsAuthenticated
-
 
 
 # Get the User model
