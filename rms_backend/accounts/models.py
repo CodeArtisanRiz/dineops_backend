@@ -29,4 +29,3 @@ class User(AbstractUser):
 #     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
 #     # Flag to indicate if the user is an admin for their tenant
 #     is_tenant_admin = models.BooleanField(default=False)
-
