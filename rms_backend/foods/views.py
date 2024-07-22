@@ -12,6 +12,9 @@ class FoodItemViewSet(viewsets.ViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # Fix: Return all food items if the user is a superuser
+        if user.is_superuser:
+            return FoodItem.objects.all()
         return FoodItem.objects.filter(tenant=user.tenant)
 
     def list(self, request):
