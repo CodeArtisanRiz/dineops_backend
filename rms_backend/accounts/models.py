@@ -8,7 +8,7 @@ class Tenant(models.Model):
     has_hotel_feature = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.name
+        return self.tenant_name  # Fixed typo: self.name to self.tenant_name
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -18,7 +18,7 @@ class User(AbstractUser):
         ('staff', 'Staff'),
         ('customer', 'Customer'),
     ]
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
+    tenant = models.ForeignKey('Tenant', on_delete=models.CASCADE, null=True, blank=True)
     is_tenant_admin = models.BooleanField(default=False)
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
