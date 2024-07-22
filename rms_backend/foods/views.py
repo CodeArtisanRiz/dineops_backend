@@ -27,7 +27,8 @@ class FoodItemViewSet(viewsets.ViewSet):
 
     def create(self, request):
         user = request.user
-        if not user.is_superuser and user.role != 'manager':
+        # if not user.is_superuser and user.role != 'manager':
+        if not user.is_superuser and user.role not in ['admin', 'manager']:
             raise PermissionDenied("You do not have permission to perform this action.")
         serializer = FoodItemSerializer(data=request.data)
         if serializer.is_valid():
