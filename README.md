@@ -1,99 +1,230 @@
-# rms_backend
+# Restaurant Management System Backend - API
 
-1.Clone the repository:
+## Project Overview
+This project is a multi-tenant restaurant management system built with Django and Django REST framework for the backend. It includes user authentication, food management features, and tenant-specific data management. Future features will include hotel management, POS functionality, and real-time data updates.
 
-git clone https://github.com/CodeArtisanRiz/rms_backend.git
-cd rms_backend
+### Key Features
+- User authentication with token management (access and refresh tokens)
+- Tenant-specific data isolation
+- CRUD operations for food items
+- Multi-tenant architecture
+- Support for optional hotel management add-on
+- SQLite database (with plans to port to MongoDB Atlas)
+- Real-time data updates (planned)
 
-2. Create and activate a virtual environment:
-python -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+## Endpoints and Permissions
 
-3. Install the required packages and change dir:
+### Authentication Endpoints
 
-pip install -r requirements.txt
-cd rms_backend
+#### Obtain Token
+- **URL**: `/api/accounts/token/`
+- **Method**: `POST`
+- **Permissions**: Public
+- **Description**: Obtain a new access and refresh token.
+- **Request Body**:
+  ```json
+  {
+    "username": "string",
+    "password": "string"
+  }
+  ```
 
-<!-- Create the project -->
-<!-- django-admin startproject rms_backend -->
-<!-- cd rms_backend -->
-<!-- python manage.py startapp accounts  -->
-<!-- Configure Project settings -->
-<!-- setup Project urls -->
+#### Refresh Token
+- **URL**: `/api/accounts/token/refresh/`
+- **Method**: `POST`
+- **Permissions**: Public
+- **Description**: Refresh the access token using the refresh token.
+- **Request Body**:
+  ```json
+  {
+    "refresh": "string"
+  }
+  ```
 
-<!-- Create account - models, serializers, views, urls and management command -->
-<!-- python manage.py makemigrations -->
-<!-- python manage.py migrate -->
+### Tenant Endpoints
 
+#### Create Tenant
+- **URL:** `/api/accounts/tenants/`
+- **Method:** `POST`
+- **Permissions:** Superuser
+- **Description:** Create a new tenant.
+- **Request Body:**
+  ```json
+  {
+    "tenant_name": "string",
+    "domain_url": "string"  // Optional
+  }
+  ```
 
+#### List Tenants
+- **URL:** `/api/accounts/tenants/`
+- **Method:** `GET`
+- **Permissions:** Superuser
+- **Description:** Retrieve a list of all tenants.
 
+#### Retrieve Tenant
+- **URL:** `/api/accounts/tenants/{id}/`
+- **Method:** `GET`
+- **Permissions:** Superuser
+- **Description:** Retrieve details of a specific tenant.
 
-# EndPoints:
-All Products
-Method: GET
-URL: http://127.0.0.1:8000/api/foods/fooditems/
-Headers:
-Key: Authorization
-Value: Bearer <your_access_token>
+#### Update Tenant
+- **URL:** `/api/accounts/tenants/{id}/`
+- **Method:** `PUT`
+- **Permissions:** Superuser
+- **Description:** Update details of a specific tenant.
+- **Request Body:**
+  ```json
+  {
+    "tenant_name": "string",
+    "domain_url": "string"  // Optional
+  }
+  ```
 
-View Products filtered by Category
-Method: GET
-URL: http://127.0.0.1:8000/api/foods/fooditems/?category=<category_name>
-Headers:
-Key: Authorization
-Value: Bearer <your_access_token>
+#### Delete Tenant
+- **URL:** `/api/accounts/tenants/{id}/`
+- **Method:** `DELETE`
+- **Permissions:** Superuser
+- **Description:** Delete a specific tenant.
 
-View Specific Product:
-Method: GET
-URL: http://127.0.0.1:8000/api/foods/fooditems/<id>/
-Headers:
-Key: Authorization
-Value: Bearer <your_access_token>
+### User Endpoints
 
-Create a New Product:
-Method: POST
-URL: http://127.0.0.1:8000/api/foods/fooditems/
-Headers:
-Key: Authorization
-Value: Bearer <your_access_token>
-Key: Content-Type
-Value: multipart/form-data
-Body: form-data
-Key: name
-Value: <product_name>
-Key: description
-Value: <product_description>
-Key: price
-Value: <product_price>
-Key: image
-Value: <upload_image_file>
-Key: category
-Value: <product_category>
+#### Create User
+- **URL:** `/api/accounts/users/`
+- **Method:** `POST`
+- **Permissions:** Superuser/Admin/Manager [Superuser can create admins and manager and admins can create manager, not vice versa. Also staff and customer can be created by all 3]
+- **Description:** Create a new user.
+- **Request Body:**
+  ```json
+  {
+    "username": "string",
+    "email": "string",
+    "password": "string",
+    "tenant": "integer",  // Optional if not superuser;
+    "first_name": "string",
+    "last_name": "string",
+    "role": "string",
+    "phone": "string",
+    "address": "string"
+  }
+  ```
 
-Update a Product:
-Method: PUT or PATCH
-URL: http://127.0.0.1:8000/api/foods/fooditems/<id>/
-Headers:
-Key: Authorization
-Value: Bearer <your_access_token>
-Key: Content-Type
-Value: multipart/form-data
-Body: form-data
-Key: name
-Value: <product_name>
-Key: description
-Value: <product_description>
-Key: price
-Value: <product_price>
-Key: image
-Value: <upload_image_file>
-Key: category
-Value: <product_category>
+#### List Users
+- **URL:** `/api/accounts/users/`
+- **Method:** `GET`
+- **Permissions:** Superuser, Admin (limited to associated tenant data), Manager (limited to associated tenant data)
+- **Description:** Retrieve a list of users. Superusers can view all users, while Admins and Managers can only see users within their tenant.
 
-Delete a Product:
-Method: DELETE
-URL: http://127.0.0.1:8000/api/foods/fooditems/<id>/
-Headers:
-Key: Authorization
-Value: Bearer <your_access_token>
-[20/07/24, 15:02:41] H M Rizwan Mazumder: View All Products:
+#### Retrieve User
+- **URL:** `/api/accounts/users/{id}/`
+- **Method:** `GET`
+- **Permissions:** Superuser, Admin (limited to associated tenant data), Manager (limited to associated tenant data)
+- **Description:** Retrieve details of a specific user.
+
+#### Update User
+- **URL:** `/api/accounts/users/{id}/`
+- **Method:** `PUT`
+- **Permissions:** Superuser/Admin/Manager [Superuser can update admins and manager and admins can update manager, not vice versa. Also staff and customer can be updated by all 3]
+- **Description:** Update details of a specific user.
+- **Request Body:**
+  ```json
+  {
+    "username": "string",
+    "email": "string",
+    "password": "string",
+    "tenant": "integer",  // Optional if superuser; required if not
+    "first_name": "string",
+    "last_name": "string",
+    "role": "string",
+    "phone": "string",
+    "address": "string"
+  }
+  ```
+
+#### Delete User
+- **URL:** `/api/accounts/users/{id}/`
+- **Method:** `DELETE`
+- **Permissions:** Superuser/Admin/Manager [Superuser can delete admins and manager and admins can delete manager, not vice versa. Also staff and customer can be deleted by all 3]
+- **Description:** Delete a specific user.
+
+### Food Item Endpoints
+
+#### Create Food Item
+- **URL:** `/api/foods/fooditems/`
+- **Method:** `POST`
+- **Permissions:** Superuser[required tenant id], Admin, Manager
+- **Description:** Create a new food item.
+- **Request Body:**
+  ```json
+  {
+    "name": "string",
+    "description": "string",
+    "price": "decimal",
+    "image": "string",  // URL or path to image
+    "category": "string",
+    "status": "string",  // 'enabled' or 'disabled',
+    "tenant": "integer"  // Required if superuser
+  }
+  ```
+
+#### List Food Items
+- **URL:** `/api/foods/fooditems/`
+- **Method:** `GET`
+- **Permissions:** Admin/Manager (limited to associated tenant data), Superuser (all data)
+- **Description:** Retrieve a list of food items.
+
+#### Retrieve Food Item
+- **URL:** `/api/foods/fooditems/{id}/`
+- **Method:** `GET`
+- **Permissions:** Admin/Manager (limited to associated tenant data), Superuser (all data)
+- **Description:** Retrieve details of a specific food item.
+
+#### Update Food Item
+- **URL:** `/api/foods/fooditems/{id}/`
+- **Method:** `PUT`
+- **Permissions:** Superuser, Admin, Manager
+- **Description:** Update details of a specific food item.
+- **Request Body:**
+  ```json
+  {
+    "name": "string",
+    "description": "string",
+    "price": "decimal",
+    "image": "string",  // URL or path to image
+    "category": "string",
+    "status": "string"  // 'enabled' or 'disabled'
+  }
+  ```
+
+#### Delete Food Item
+- **URL:** `/api/foods/fooditems/{id}/`
+- **Method:** `DELETE`
+- **Permissions:** Superuser, Admin, Manager
+- **Description:** Delete a specific food item.
+
+### Authentication Endpoints
+
+#### Obtain Token
+- **URL:** `/api/token/`
+- **Method:** `POST`
+- **Permissions:** Public
+- **Description:** Obtain an access and refresh token.
+- **Request Body:**
+  ```json
+  {
+    "username": "string",
+    "password": "string"
+  }
+  ```
+
+#### Refresh Token
+- **URL:** `/api/token/refresh/`
+- **Method:** `POST`
+- **Permissions:** Public
+- **Description:** Refresh the access token using a refresh token.
+- **Request Body:**
+  ```json
+  {
+    "refresh": "string"
+  }
+  ```
