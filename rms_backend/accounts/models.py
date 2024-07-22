@@ -19,7 +19,7 @@ class User(AbstractUser):
         ('customer', 'Customer'),
     ]
     tenant = models.ForeignKey('Tenant', on_delete=models.CASCADE, null=True, blank=True)
-    is_tenant_admin = models.BooleanField(default=False)
+    # is_tenant_admin = models.BooleanField(default=False)
     first_name = models.CharField(max_length=30, blank=True)
     last_name = models.CharField(max_length=30, blank=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
