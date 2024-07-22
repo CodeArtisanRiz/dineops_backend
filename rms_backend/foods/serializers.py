@@ -4,8 +4,5 @@ from .models import FoodItem
 class FoodItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = FoodItem
-        fields = ['id', 'name', 'description', 'price', 'image','category', 'tenant']
-        extra_kwargs = {
-            'image': {'required': False},
-            'tenant': {'required': False}
-        }
+        fields = ['id', 'tenant', 'name', 'description', 'price', 'image', 'category', 'status', 'created_at', 'modified_at', 'created_by', 'modified_by']
+        read_only_fields = ['created_at', 'modified_at', 'created_by', 'modified_by'] # Ensure these fields are read-only
