@@ -1,13 +1,3 @@
-# from rest_framework import serializers
-# from django.contrib.auth import get_user_model
-# from .models import Tenant
-
-# UserModel = get_user_model()
-
-# class UserSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = UserModel
-#         fields = ['id', 'username', 'email', 'tenant', 'is_tenant_admin', 'first_name', 'last_name', 'role', 'phone', 'address']
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import Tenant
@@ -23,7 +13,7 @@ class TenantSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserModel
-        fields = ['id', 'username', 'password', 'email', 'tenant', 'is_tenant_admin', 'first_name', 'last_name', 'role', 'phone', 'address']
+        fields = ['id', 'username', 'password', 'email', 'tenant', 'first_name', 'last_name', 'role', 'phone', 'address']
         extra_kwargs = {
             'password': {'write_only': True}
         }
