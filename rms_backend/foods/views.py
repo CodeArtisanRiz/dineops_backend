@@ -27,14 +27,23 @@ class FoodItemViewSet(viewsets.ViewSet):
 
     def create(self, request):
         user = request.user
-        # if not user.is_superuser and user.role != 'manager':
-        if not user.is_superuser and user.role not in ['admin', 'manager']:
+        if user.is_superuser:
+            tenant_id = request.data.get('tenant')
+            if not tenant_id:
+                raise PermissionDenied("Superuser must include tenant ID in request.")
+            serializer = FoodItemSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(tenant_id=tenant_id)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        elif user.role in ['admin', 'manager']:
+            serializer = FoodItemSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(tenant=user.tenant)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
             raise PermissionDenied("You do not have permission to perform this action.")
-        serializer = FoodItemSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(tenant=user.tenant)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
         user = request.user
