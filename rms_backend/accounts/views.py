@@ -5,14 +5,15 @@ from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from .models import Tenant
 from .serializers import UserSerializer, TenantSerializer
+from .permissions import IsSuperuser
 
 UserModel = get_user_model()
 
 class TenantViewSet(viewsets.ModelViewSet):
     queryset = Tenant.objects.all()
     serializer_class = TenantSerializer
-    permission_classes = [IsAuthenticated]
-
+    # permission_classes = [IsAuthenticated]
+    permission_classes = [IsSuperuser]  # Use the custom permission class here
 class UserViewSet(viewsets.ModelViewSet):
     queryset = UserModel.objects.all()
     serializer_class = UserSerializer
