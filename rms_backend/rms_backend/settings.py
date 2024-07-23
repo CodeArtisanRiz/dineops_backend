@@ -85,6 +85,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
 
+# If you want to allow all origins (for development purposes only):
+CORS_ALLOW_ALL_ORIGINS = True
+
 ROOT_URLCONF = 'rms_backend.urls'
 
 TEMPLATES = [
