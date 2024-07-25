@@ -3,4 +3,4 @@ from django.shortcuts import render
 
 
 def home(request):
-    return HttpResponse("RMS Backend - Multi-Tenanant Accounts, Foods, POS, Analytics, and More!")
+    return HttpResponse("DineOps Backend - Multi-Tenanant Accounts, Foods, POS, Analytics, and More!")
