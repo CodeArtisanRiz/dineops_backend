@@ -19,7 +19,7 @@ git clone https://github.com/CodeArtisanRiz/rms_backend.git
 cd rms_backend
 
 - Create and activate a virtual environment:
-python -m venv venv
+python3 -m venv venv # On Windows use `python -m venv venv`
 source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 
 - Install the required packages and change dir:
