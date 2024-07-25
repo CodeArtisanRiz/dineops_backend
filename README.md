@@ -188,7 +188,7 @@ This project is a multi-tenant restaurant management system built with Django an
 - **Request Body:**
   ```json
   {
-    "tenat": "integer",  // Optional if not superuser.
+    "tenant": "integer",  // Optional if not superuser.
     "name": "string",
     "description": "string",
     "price": "decimal",
