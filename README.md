@@ -1,4 +1,4 @@
-# Restaurant Management System Backend - API
+# DineOps Backend - API
 
 ## Project Overview
 This project is a multi-tenant restaurant management system built with Django and Django REST framework for the backend. It includes user authentication, food management features, and tenant-specific data management. Future features will include hotel management, POS functionality, and real-time data updates.
@@ -188,7 +188,7 @@ This project is a multi-tenant restaurant management system built with Django an
 - **Request Body:**
   ```json
   {
-    "tenant": "integer",  // Optional if not superuser.
+    "tenat": "integer",  // Optional if not superuser.
     "name": "string",
     "description": "string",
     "price": "decimal",
