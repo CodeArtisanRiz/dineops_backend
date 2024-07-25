@@ -12,6 +12,23 @@ This project is a multi-tenant restaurant management system built with Django an
 - SQLite database (with plans to port to MongoDB Atlas)
 - Real-time data updates (planned)
 
+## Installation
+- Clone the repository:
+
+git clone https://github.com/CodeArtisanRiz/rms_backend.git
+cd rms_backend
+
+- Create and activate a virtual environment:
+python -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+
+- Install the required packages and change dir:
+
+```python
+pip install -r requirements.txt
+cd rms_backend
+```
+
 ## Endpoints and Permissions
 
 ### Authentication Endpoints
