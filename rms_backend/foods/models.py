@@ -12,7 +12,8 @@ class FoodItem(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    image = models.ImageField(upload_to='foods/images', null=True, blank=True)
+    # image = models.ImageField(upload_to='foods/images', null=True, blank=True)
+    image = models.URLField(null=True, blank=True)  # Store URL instead of image file
     category = models.CharField(max_length=100, blank=True, null=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='enabled')
     created_at = models.DateTimeField(auto_now_add=True)
