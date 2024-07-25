@@ -100,7 +100,7 @@ This project is a multi-tenant restaurant management system built with Django an
     "username": "string",
     "email": "string",
     "password": "string",
-    "tenant": "integer",  // Optional if not superuser;
+    "tenant": "integer",  // Optional if not superuser.
     "first_name": "string",
     "last_name": "string",
     "role": "string",
@@ -132,7 +132,7 @@ This project is a multi-tenant restaurant management system built with Django an
     "username": "string",
     "email": "string",
     "password": "string",
-    "tenant": "integer",  // Optional if superuser; required if not
+    "tenant": "integer",  // Optional if superuser.
     "first_name": "string",
     "last_name": "string",
     "role": "string",
@@ -157,12 +157,13 @@ This project is a multi-tenant restaurant management system built with Django an
 - **Request Body:**
   ```json
   {
+    "tenant": "integer",  // Optional if not superuser
     "name": "string",
     "description": "string",
     "price": "decimal",
-    "image": "string",  // URL or path to image
+    "image": "file",
     "category": "string",
-    "status": "string",  // 'enabled' or 'disabled',
+    "status": "string",  // 'enabled' or 'disabled'
     "tenant": "integer"  // Required if superuser
   }
   ```
@@ -187,10 +188,11 @@ This project is a multi-tenant restaurant management system built with Django an
 - **Request Body:**
   ```json
   {
+    "tenat": "integer",  // Optional if not superuser.
     "name": "string",
     "description": "string",
     "price": "decimal",
-    "image": "string",  // URL or path to image
+    "image": "file",
     "category": "string",
     "status": "string"  // 'enabled' or 'disabled'
   }
