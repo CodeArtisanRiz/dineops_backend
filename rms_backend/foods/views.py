@@ -4,9 +4,14 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 import requests
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
+import logging
 
-from .models import FoodItem
+from .models import FoodItem, Tenant
 from .serializers import FoodItemSerializer
+
+logger = logging.getLogger(__name__)
 
 class FoodItemViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -34,18 +39,21 @@ class FoodItemViewSet(viewsets.ViewSet):
             tenant_id = request.data.get('tenant')
             if not tenant_id:
                 raise PermissionDenied("Superuser must include tenant ID in request.")
+            tenant = get_object_or_404(Tenant, id=tenant_id)
+            tenant_name = tenant.tenant_name
 
             # Handle image file upload
-            self.handle_image_upload(request)
+            self.handle_image_upload(request, tenant_name)
 
             serializer = FoodItemSerializer(data=request.data)
             if serializer.is_valid():
-                serializer.save(created_by=user, tenant_id=tenant_id)
+                serializer.save(created_by=user, tenant=tenant)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         elif user.role in ['admin', 'manager']:
+            tenant_name = user.tenant.tenant_name
             # Handle image file upload
-            self.handle_image_upload(request)
+            self.handle_image_upload(request, tenant_name)
             serializer = FoodItemSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(created_by=user, tenant=user.tenant)
@@ -61,8 +69,10 @@ class FoodItemViewSet(viewsets.ViewSet):
 
         queryset = self.get_queryset()
         food_item = get_object_or_404(queryset, pk=pk)
+        tenant_name = user.tenant.tenant_name if not user.is_superuser else food_item.tenant.tenant_name
+
         # Handle image file upload
-        self.handle_image_upload(request)
+        self.handle_image_upload(request, tenant_name)
         serializer = FoodItemSerializer(food_item, data=request.data, partial=True)
         if serializer.is_valid():
             modified_by_list = food_item.modified_by
@@ -81,24 +91,35 @@ class FoodItemViewSet(viewsets.ViewSet):
         food_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def upload_image(self, image_file):
+    def upload_image(self, image_file, tenant_name):
         # Uploads an image file to the remote server and returns the URL.
         files = {'file': (image_file.name, image_file.read(), image_file.content_type)}
-        response = requests.post('https://techno3gamma.in/bucket/dineops/upload_image.php', files=files)
+        data = {'tenant': tenant_name}
+        response = requests.post('https://techno3gamma.in/bucket/dineops/handle_food_image.php', files=files, data=data)
 
         if response.status_code == 200:
             data = response.json()
-            return data.get('image_url')
+            image_url = data.get('image_url')
+            logger.debug(f'Uploaded image URL: {image_url}')
+            return image_url
         return None
 
-    def handle_image_upload(self, request):
+    def handle_image_upload(self, request, tenant_name):
         # Helper method to handle image file upload
         image_file = request.FILES.get('image')
         if image_file:
-            image_url = self.upload_image(image_file)
+            image_url = self.upload_image(image_file, tenant_name)
             if image_url:
-                request.data._mutable = True  # Make request data mutable
-                request.data['image'] = image_url
-                request.data._mutable = False  # Make request data immutable
+                # Validate URL
+                validate = URLValidator()
+                try:
+                    validate(image_url)
+                    request.data._mutable = True  # Make request data mutable
+                    request.data['image'] = image_url
+                    request.data._mutable = False  # Make request data immutable
+                    logger.debug(f'Successfully added image URL to request data: {request.data["image"]}')
+                except ValidationError as e:
+                    logger.error(f'Invalid image URL: {image_url}, Error: {e}')
+                    raise PermissionDenied('Failed to upload image: Invalid URL.')
             else:
                 raise PermissionDenied('Failed to upload image.')
