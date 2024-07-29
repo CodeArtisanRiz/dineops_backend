@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
-from .models import Tenant
+from .models import Tenant, Table
 from .serializers import UserSerializer, TenantSerializer
 from .permissions import IsSuperuser
 import requests
@@ -12,28 +12,9 @@ from django.core.exceptions import ValidationError
 import logging
 
 
-
-# class TenantViewSet(viewsets.ModelViewSet):
-#     queryset = Tenant.objects.all()
-#     serializer_class = TenantSerializer
-
-#     def get_queryset(self):
-#         user = self.request.user
-#         if user.is_superuser:
-#             return Tenant.objects.all()
-#         elif user.role in ['admin', 'manager']:
-#             return Tenant.objects.filter(id=user.tenant_id)
-#         return Tenant.objects.none()
-
-#     def get_permissions(self):
-#         if self.action in ['list', 'retrieve']:
-#             permission_classes = [IsAuthenticated]
-#         else:
-#             permission_classes = [IsSuperuser]
-#         return [permission() for permission in permission_classes]
-
 logger = logging.getLogger(__name__)
 class TenantViewSet(viewsets.ModelViewSet):
+    queryset = Tenant.objects.all()
     serializer_class = TenantSerializer
 
     def get_queryset(self):
@@ -64,9 +45,27 @@ class TenantViewSet(viewsets.ModelViewSet):
 
         serializer = TenantSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            tenant = serializer.save()
+            # total_tables = request.data.get('total_tables', 0)
+            total_tables = int(request.data.get('total_tables', 0))  # Convert to int here
+            self.create_tables(tenant, total_tables)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, *args, **kwargs):
+        tenant = self.get_object()
+        total_tables = request.data.get('total_tables', None)
+        response = super().update(request, *args, **kwargs)
+        if total_tables is not None:
+            current_count = tenant.tables.count()
+            if total_tables > current_count:
+                for i in range(current_count + 1, total_tables + 1):
+                    Table.objects.create(tenant=tenant, table_number=i)
+        return response
+
+    def create_tables(self, tenant, total_tables):
+        for i in range(1, total_tables + 1):
+            Table.objects.create(tenant=tenant, table_number=i)
 
     def handle_image_upload(self, request, tenant_name):
         image_file = request.FILES.get('logo')
