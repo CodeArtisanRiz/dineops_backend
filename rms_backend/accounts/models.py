@@ -7,8 +7,28 @@ class Tenant(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     has_hotel_feature = models.BooleanField(default=False)
 
+    # Address details
+    address_line_1 = models.CharField(max_length=255, null=True, blank=True)
+    address_line_2 = models.CharField(max_length=255, null=True, blank=True)
+    city = models.CharField(max_length=100, null=True, blank=True)
+    state = models.CharField(max_length=100, null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
+    pin = models.CharField(max_length=20, null=True, blank=True)
+
+    # Contact information
+    phone = models.IntegerField(max_length=10, null=True, blank=True)
+    alt_phone = models.IntegerField(max_length=10, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    website = models.URLField(null=True, blank=True)
+    # Additional business information
+    gst_in = models.CharField(max_length=15, null=True, blank=True)
+    # Preferences and settings
+    logo_url = models.URLField(null=True, blank=True)
+    # Other
+    updated_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
-        return self.tenant_name  # Fixed typo: self.name to self.tenant_name
+        return self.tenant_name
 
 class User(AbstractUser):
     ROLE_CHOICES = [

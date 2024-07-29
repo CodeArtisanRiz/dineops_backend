@@ -12,8 +12,21 @@ UserModel = get_user_model()
 class TenantViewSet(viewsets.ModelViewSet):
     queryset = Tenant.objects.all()
     serializer_class = TenantSerializer
-    # permission_classes = [IsAuthenticated]
-    permission_classes = [IsSuperuser]  # Use the custom permission class here
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Tenant.objects.all()
+        elif user.role in ['admin', 'manager']:
+            return Tenant.objects.filter(id=user.tenant_id)
+        return Tenant.objects.none()
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsSuperuser]
+        return [permission() for permission in permission_classes]
 class UserViewSet(viewsets.ModelViewSet):
     queryset = UserModel.objects.all()
     serializer_class = UserSerializer
