@@ -16,8 +16,8 @@ class Tenant(models.Model):
     pin = models.CharField(max_length=20, null=True, blank=True)
 
     # Contact information
-    phone = models.IntegerField(max_length=10, null=True, blank=True)
-    alt_phone = models.IntegerField(max_length=10, null=True, blank=True)
+    phone = models.CharField(max_length=10, null=True, blank=True)
+    alt_phone = models.CharField(max_length=10, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     website = models.URLField(null=True, blank=True)
     # Additional business information
@@ -29,6 +29,14 @@ class Tenant(models.Model):
 
     def __str__(self):
         return self.tenant_name
+
+class Table(models.Model):
+    tenant = models.ForeignKey(Tenant, related_name='tables', on_delete=models.CASCADE)
+    table_number = models.PositiveIntegerField(default=0)
+    occupied = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Table {self.table_number} - {'Occupied' if self.occupied else 'Free'}"
 
 class User(AbstractUser):
     ROLE_CHOICES = [
