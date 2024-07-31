@@ -7,6 +7,8 @@ class Tenant(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     has_hotel_feature = models.BooleanField(default=False)
 
+    total_tables = models.IntegerField(default=0)
+
     # Address details
     address_line_1 = models.CharField(max_length=255, null=True, blank=True)
     address_line_2 = models.CharField(max_length=255, null=True, blank=True)
