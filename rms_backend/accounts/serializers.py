@@ -8,7 +8,7 @@ UserModel = get_user_model()
 class TableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Table
-        fields = ['id', 'table_number', 'occupied']
+        fields = ['id', 'table_number', 'occupied', 'tenant']
 
 class TenantSerializer(serializers.ModelSerializer):
     tables = TableSerializer(many=True, read_only=True)

@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from .models import Tenant, Table
-from .serializers import UserSerializer, TenantSerializer
+from .serializers import UserSerializer, TenantSerializer, TableSerializer
 from .permissions import IsSuperuser
 import requests
 from django.core.validators import URLValidator
@@ -57,15 +57,38 @@ class TenantViewSet(viewsets.ModelViewSet):
         total_tables = request.data.get('total_tables', None)
         response = super().update(request, *args, **kwargs)
         if total_tables is not None:
+            total_tables = int(total_tables)
             current_count = tenant.tables.count()
+            # if total_tables > current_count:
+            #     for i in range(current_count + 1, total_tables + 1):
+            #         Table.objects.create(tenant=tenant, table_number=i)
             if total_tables > current_count:
-                for i in range(current_count + 1, total_tables + 1):
-                    Table.objects.create(tenant=tenant, table_number=i)
+                self.create_tables(tenant, total_tables - current_count)
+            elif total_tables < current_count:
+                self.remove_tables(tenant, current_count - total_tables)
+            tenant.total_tables = total_tables  # Ensure tenant.total_tables is updated
         return response
 
-    def create_tables(self, tenant, total_tables):
-        for i in range(1, total_tables + 1):
-            Table.objects.create(tenant=tenant, table_number=i)
+    # def create_tables(self, tenant, count):
+    #     current_count = tenant.tables.count()
+    #     for i in range(1, count + 1):
+    #         Table.objects.create(tenant=tenant, table_number=current_count + i)
+
+    # def remove_tables(self, tenant, count):
+    #     tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
+    #     for table in tables_to_delete:
+    #         table.delete()
+
+    def create_tables(self, tenant, count):
+        table_viewset = TableViewSet()
+        table_viewset.request = self.request  # Pass the request object to TableViewSet
+        for _ in range(count):
+            table_viewset.perform_create(serializer=TableSerializer(data={'tenant': tenant.id}))
+
+    def remove_tables(self, tenant, count):
+        tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
+        for table in tables_to_delete:
+            table.delete()
 
     def handle_image_upload(self, request, tenant_name):
         image_file = request.FILES.get('logo')
@@ -143,3 +166,47 @@ class UserViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("Superuser must include tenant ID in request.")
         else:
             serializer.save()
+
+class TableViewSet(viewsets.ModelViewSet):
+    queryset = Table.objects.all()
+    serializer_class = TableSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Table.objects.all()
+        return Table.objects.filter(tenant=user.tenant)
+
+    def perform_create(self, serializer):
+        if serializer.is_valid():
+            # Get the tenant from the validated data
+            tenant = serializer.validated_data.get('tenant')
+            if not tenant:
+            # Raise PermissionDenied if no tenant is assigned
+                raise PermissionDenied("Table must be assigned to a tenant.")
+
+            # Calculate the new table number
+            table_number = tenant.tables.count() + 1  # Set the table number correctly
+            # Save the serializer with the new table number
+            serializer.save(table_number=table_number)
+
+            # Increment the total tables count for the tenant
+            tenant.total_tables += 1
+            # Save the updated tenant
+            tenant.save()
+        else:
+            raise ValidationError(serializer.errors)
+
+        # serializer.save()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        # No additional action required on tenant
+
+    def perform_destroy(self, instance):
+        tenant = instance.tenant
+        instance.delete()
+
+        tenant.total_tables -= 1
+        tenant.save()

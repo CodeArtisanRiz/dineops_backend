@@ -68,15 +68,29 @@ cd rms_backend
 - **Request Body:**
   ```json
   {
-    "tenant_name": "string",
-    "domain_url": "string"  // Optional
+      "tenant_name": "Tenant C",  // Required
+      "domain_url": "xyz.in",     // Optional
+      "has_hotel_feature": false, // Optional, defaults to false if not provided
+      "gst_in": "GST987654",      // Optional
+      "address_line_1": "xyx",    // Optional, defaults to null if not provided
+      "address_line_2": null,     // Optional, defaults to null if not provided
+      "city": null,               // Optional, defaults to null if not provided
+      "state": null,              // Optional, defaults to null if not provided
+      "country": null,            // Optional, defaults to null if not provided
+      "pin": null,                // Optional, defaults to null if not provided
+      "phone": null,              // Optional, defaults to null if not provided
+      "alt_phone": null,          // Optional, defaults to null if not provided
+      "email": null,              // Optional, defaults to null if not provided
+      "website": null,            // Optional, defaults to null if not provided
+      "total_tables": 4,          // Optional, defaults to 0 if not provided
+      "logo": "file"              // Optional, this is a file upload field
   }
   ```
 
 #### List Tenants
 - **URL:** `/api/accounts/tenants/`
 - **Method:** `GET`
-- **Permissions:** Superuser
+- **Permissions:** Superuser(all), Manager/Staff()
 - **Description:** Retrieve a list of all tenants.
 
 #### Retrieve Tenant
@@ -93,8 +107,10 @@ cd rms_backend
 - **Request Body:**
   ```json
   {
-    "tenant_name": "string",
-    "domain_url": "string"  // Optional
+      "tenant_name": "Tenant A Updated",  // Optional
+      "gst_in": "GST111111",              // Optional
+      "total_tables": 6,                  // Optional
+      "logo": "file"                      // Optional, this is a file upload field
   }
   ```
 
@@ -103,6 +119,57 @@ cd rms_backend
 - **Method:** `DELETE`
 - **Permissions:** Superuser
 - **Description:** Delete a specific tenant.
+
+### Table Endpoints
+
+#### List Table
+- **URL:**  `/api/accounts/tables/`
+- **Method:** `GET`
+- **Permissions:** Superuser/Admin/Manager
+- **Description:** Retrieve a list of tables.
+
+#### Retrieve a Table
+
+- **URL:**  `/api/accounts/tables/{id}/`
+- **Method:** `GET`
+- **Permissions:** Superuser/Admin/Manager
+- **Description:** Retrieve details of a specific table.
+
+### Create a Table
+
+- **URL:**  `/api/accounts/tables/`
+- **Method:** `POST`
+- **Permissions:** Superuser/Admin/Manager
+- **Description:** Create a table.
+- **Request Body:**
+  ```json
+    {
+        "tenant": 1,  // Required if superuser
+        "occupied": false  // Optional, defaults to false if not provided
+    }
+  ```
+
+#### Update a Table
+
+- **URL:**  `/api/accounts/tables/{id}/`
+- **Method:** `PUT`
+- **Permissions:** Superuser/Admin/Manager
+- **Description:** Update a table.
+- **Request Body:**
+  ```json
+    {
+        "tenant": 1,  // Required if superuser
+        "occupied": false  // Optional, defaults to false if not provided
+    }
+  ```
+
+#### Delete a Table
+
+- **URL:**  `/api/accounts/tables/{id}/`
+- **Method:** `DELETE`
+- **Permissions:** Superuser/Admin/Manager
+- **Description:** Delete a table.
+
 
 ### User Endpoints
 
