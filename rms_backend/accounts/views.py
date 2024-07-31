@@ -48,7 +48,7 @@ class TenantViewSet(viewsets.ModelViewSet):
             tenant = serializer.save()
             # total_tables = request.data.get('total_tables', 0)
             total_tables = int(request.data.get('total_tables', 0))  # Convert to int here
-            self.create_tables(tenant, total_tables)
+            # self.create_tables(tenant, total_tables) # Doubled the tables
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -183,7 +183,7 @@ class TableViewSet(viewsets.ModelViewSet):
             # Get the tenant from the validated data
             tenant = serializer.validated_data.get('tenant')
             if not tenant:
-            # Raise PermissionDenied if no tenant is assigned
+                # Raise PermissionDenied if no tenant is assigned
                 raise PermissionDenied("Table must be assigned to a tenant.")
 
             # Calculate the new table number
