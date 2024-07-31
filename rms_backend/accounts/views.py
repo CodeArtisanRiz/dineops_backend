@@ -79,11 +79,12 @@ class TenantViewSet(viewsets.ModelViewSet):
     #     for table in tables_to_delete:
     #         table.delete()
 
-    def create_tables(self, tenant, count):
-        table_viewset = TableViewSet()
-        table_viewset.request = self.request  # Pass the request object to TableViewSet
-        for _ in range(count):
-            table_viewset.perform_create(serializer=TableSerializer(data={'tenant': tenant.id}))
+    # Not Required, kept for reference
+    # def create_tables(self, tenant, count):
+    #     table_viewset = TableViewSet()
+    #     table_viewset.request = self.request  # Pass the request object to TableViewSet
+    #     for _ in range(count):
+    #         table_viewset.perform_create(serializer=TableSerializer(data={'tenant': tenant.id}))
 
     def remove_tables(self, tenant, count):
         tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
