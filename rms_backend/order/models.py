@@ -8,15 +8,35 @@ User = get_user_model()
 class Order(models.Model):
     STATUS_CHOICES = [
         ('in_progress', 'In Progress'),
+        ('served', 'Served'),
         ('completed', 'Completed'),
         ('cancelled', 'Cancelled'),
-        ('on_hold', 'On Hold'),
-        ('settled', 'Settled'),
+        ('on_hold', 'On Hold')
+        # ,
+        # ('settled', 'Settled'),
+    ]
+    ORDER_CHOICES = [
+        ('take_away', 'Take Away'),
+        ('dine_in', 'Dine In'),
+        ('delivery', 'Delivery'),
+        ('online', 'Online'),
+        ('hotel', 'Hotel')
+    ]
+
+    PAYMENT_CHOICES = [
+        ('cash', 'Cash'),
+        ('card', 'Card'),
+        ('upi', 'UPI'),
+        ('due', 'Due'),
+        ('other', 'Other')
     ]
 
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='orders')
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    order_type = models.CharField(max_length=20, choices=ORDER_CHOICES, default='dine_in')
     table = models.ForeignKey(Table, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    # room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
