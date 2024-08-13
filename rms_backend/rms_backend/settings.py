@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     # Custom accounts app for user management
     'accounts',
     # Food app for product management
-    'foods'
+    'foods',
+    'order',
 ]
 
 MIDDLEWARE = [
