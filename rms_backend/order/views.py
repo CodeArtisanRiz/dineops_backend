@@ -1,9 +1,9 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.core.exceptions import ValidationError
 from accounts.models import Table, User
 from django.contrib.auth import get_user_model
 from .models import Order
@@ -62,18 +62,24 @@ class OrderViewSet(viewsets.ViewSet):
                         role='customer'
                     )
 
-                # # Get or create table
-                # table = get_object_or_404(Table, pk=data.get('table'))
-                # table.occupied = True
-                # table.save()
-                # Get or create table and check occupancy
-                table = get_object_or_404(Table, pk=data.get('table'))
+                order_type = data.get('order_type')
 
-                if table.occupied:
-                    raise ValidationError({"table": "This table is already occupied."})
+                # Validate order_type and table/room requirements
+                if order_type == 'dine_in':
+                    table_id = data.get('table')
+                    if not table_id:
+                        raise ValidationError("Table is required for dine-in orders.")
+                    table = get_object_or_404(Table, pk=table_id)
 
-                table.occupied = True
-                table.save()
+                    if table.occupied:
+                        raise ValidationError(f"Table {table_id} is already occupied.")
+
+                    table.occupied = True
+                    table.save()
+                elif order_type == 'hotel':
+                    raise NotImplementedError("Hotel is not yet implemented.")
+                else:
+                    table = None
 
                 # Create order
                 order = Order.objects.create(
@@ -85,18 +91,20 @@ class OrderViewSet(viewsets.ViewSet):
                     coupon_used=data.get('coupon_used', []),
                     notes=data.get('notes', ''),
                     status='in_progress',
+                    order_type=order_type,
+                    payment_method=data.get('payment_method'),
                 )
                 order.food_items.set(data.get('food_items'))
 
                 serializer = OrderSerializer(order)
-                # logger.info(f"Order {order.id} created by {user.username}")
+                logger.info(f"Order {order.id} created by {user.username}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except ValidationError as e:
-            # logger.error(f"Error creating order: {e}")
+            logger.exception(f"Error creating order: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # logger.error(f"Unexpected error: {e}")
+            logger.exception(f"Unexpected error: {e}")
             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, pk=None):
@@ -107,9 +115,10 @@ class OrderViewSet(viewsets.ViewSet):
             with transaction.atomic():
                 order = get_object_or_404(self.get_queryset(), pk=pk)
 
-                if data.get('status') in ['completed', 'cancelled']:
-                    order.table.occupied = False
-                    order.table.save()
+                if order.order_type == 'dine_in' and order.table:
+                    if data.get('status') in ['completed', 'cancelled']:
+                        order.table.occupied = False
+                        order.table.save()
 
                 # Update order details
                 order.status = data.get('status', order.status)
@@ -124,8 +133,8 @@ class OrderViewSet(viewsets.ViewSet):
                 return Response(serializer.data, status=status.HTTP_200_OK)
 
         except ValidationError as e:
-            # logger.error(f"Error updating order: {e}")
+            logger.exception(f"Error updating order: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            # logger.error(f"Unexpected error: {e}")
+            logger.exception(f"Unexpected error: {e}")
             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
