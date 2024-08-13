@@ -1,12 +1,10 @@
 from rest_framework import serializers
-from .models import Order
+from .models import Order, FoodItem
 
 # class OrderSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = Order
 #         fields = '__all__'
-from rest_framework import serializers
-from .models import Order, FoodItem
 
 class OrderSerializer(serializers.ModelSerializer):
     food_items = serializers.PrimaryKeyRelatedField(many=True, queryset=FoodItem.objects.all())
