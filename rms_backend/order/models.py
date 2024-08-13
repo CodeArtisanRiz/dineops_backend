@@ -41,6 +41,7 @@ class Order(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
     food_items = models.ManyToManyField(FoodItem)
+    quantity = models.JSONField(default=list, blank=True)
     total_price = models.DecimalField(null=True, max_digits=10, decimal_places=2)
     discount = models.DecimalField(null=True, blank=True, max_digits=10, decimal_places=2)  # Added discount field
     coupon_used = models.JSONField(default=list, blank=True)  # Added coupon used[] field
