@@ -49,7 +49,10 @@ INSTALLED_APPS = [
     'accounts',
     # Food app for product management
     'foods',
+    # Order app for order management
     'order',
+    # Hotel app for hotel management
+    'hotel',
 ]
 
 MIDDLEWARE = [
