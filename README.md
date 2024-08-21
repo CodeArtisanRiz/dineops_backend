@@ -68,22 +68,22 @@ cd rms_backend
 - **Request Body:**
   ```json
   {
-      "tenant_name": "Tenant C",  // Required
-      "domain_url": "xyz.in",     // Optional
-      "has_hotel_feature": false, // Optional, defaults to false if not provided
-      "gst_in": "GST987654",      // Optional
-      "address_line_1": "xyx",    // Optional, defaults to null if not provided
-      "address_line_2": null,     // Optional, defaults to null if not provided
-      "city": null,               // Optional, defaults to null if not provided
-      "state": null,              // Optional, defaults to null if not provided
-      "country": null,            // Optional, defaults to null if not provided
-      "pin": null,                // Optional, defaults to null if not provided
-      "phone": null,              // Optional, defaults to null if not provided
-      "alt_phone": null,          // Optional, defaults to null if not provided
-      "email": null,              // Optional, defaults to null if not provided
-      "website": null,            // Optional, defaults to null if not provided
-      "total_tables": 4,          // Optional, defaults to 0 if not provided
-      "logo": "file"              // Optional, this is a file upload field
+    "tenant_name": "Tenant C",  // Required
+    "domain_url": "xyz.in",     // Optional
+    "has_hotel_feature": false, // Optional, default: false
+    "gst_in": "GST987654",      // Optional, default: null
+    "address_line_1": "xyx",    // Optional, default: null
+    "address_line_2": null,     // Optional, default: null
+    "city": null,               // Optional, default: null
+    "state": null,              // Optional, default: null
+    "country": null,            // Optional, default: null
+    "pin": null,                // Optional, default: null
+    "phone": null,              // Optional, default: null
+    "alt_phone": null,          // Optional, default: null
+    "email": null,              // Optional, default: null
+    "website": null,            // Optional, default: null
+    "total_tables": 4,          // Optional, defaults to 0
+    "logo": "file"              // Optional, file upload field
   }
   ```
 
@@ -248,7 +248,6 @@ cd rms_backend
     "image": "file",
     "category": "string",
     "status": "string",  // 'enabled' or 'disabled'
-    "tenant": "integer"  // Required if superuser
   }
   ```
 
