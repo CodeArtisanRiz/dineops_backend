@@ -39,3 +39,4 @@ def handle_image_upload(request, tenant_name):
                 raise PermissionDenied('Failed to upload image: Invalid URL.')
         else:
             raise PermissionDenied('Failed to upload image.')
+        
