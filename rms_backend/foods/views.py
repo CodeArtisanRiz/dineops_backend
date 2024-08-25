@@ -93,38 +93,6 @@ class CategoryViewSet(viewsets.ViewSet):
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    # def upload_image(self, image_file, tenant_name):
-    #     # Uploads an image file to the remote server and returns the URL.
-    #     files = {'file': (image_file.name, image_file.read(), image_file.content_type)}
-    #     data = {'tenant': tenant_name}
-    #     response = requests.post('https://techno3gamma.in/bucket/dineops/handle_food_image.php', files=files, data=data)
-
-    #     if response.status_code == 200:
-    #         data = response.json()
-    #         image_url = data.get('image_url')
-    #         logger.debug(f'Uploaded image URL: {image_url}')
-    #         return image_url
-    #     return None
-
-    # def handle_image_upload(self, request, tenant_name):
-    #     # Helper method to handle image file upload
-    #     image_file = request.FILES.get('image')
-    #     if image_file:
-    #         image_url = self.upload_image(image_file, tenant_name)
-    #         if image_url:
-    #             # Validate URL
-    #             validate = URLValidator()
-    #             try:
-    #                 validate(image_url)
-    #                 request.data._mutable = True  # Make request data mutable
-    #                 request.data['image'] = image_url
-    #                 request.data._mutable = False  # Make request data immutable
-    #                 logger.debug(f'Successfully added image URL to request data: {request.data["image"]}')
-    #             except ValidationError as e:
-    #                 logger.error(f'Invalid image URL: {image_url}, Error: {e}')
-    #                 raise PermissionDenied('Failed to upload image: Invalid URL.')
-    #         else:
-    #             raise PermissionDenied('Failed to upload image.')
             
 class FoodItemViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -217,36 +185,3 @@ class FoodItemViewSet(viewsets.ViewSet):
         food_item = get_object_or_404(queryset, pk=pk)
         food_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-    # def upload_image(self, image_file, tenant_name):
-    #     # Uploads an image file to the remote server and returns the URL.
-    #     files = {'file': (image_file.name, image_file.read(), image_file.content_type)}
-    #     data = {'tenant': tenant_name}
-    #     response = requests.post('https://techno3gamma.in/bucket/dineops/handle_food_image.php', files=files, data=data)
-
-    #     if response.status_code == 200:
-    #         data = response.json()
-    #         image_url = data.get('image_url')
-    #         logger.debug(f'Uploaded image URL: {image_url}')
-    #         return image_url
-    #     return None
-
-    # def handle_image_upload(self, request, tenant_name):
-    #     # Helper method to handle image file upload
-    #     image_file = request.FILES.get('image')
-    #     if image_file:
-    #         image_url = self.upload_image(image_file, tenant_name)
-    #         if image_url:
-    #             # Validate URL
-    #             validate = URLValidator()
-    #             try:
-    #                 validate(image_url)
-    #                 request.data._mutable = True  # Make request data mutable
-    #                 request.data['image'] = image_url
-    #                 request.data._mutable = False  # Make request data immutable
-    #                 logger.debug(f'Successfully added image URL to request data: {request.data["image"]}')
-    #             except ValidationError as e:
-    #                 logger.error(f'Invalid image URL: {image_url}, Error: {e}')
-    #                 raise PermissionDenied('Failed to upload image: Invalid URL.')
-    #         else:
-    #             raise PermissionDenied('Failed to upload image.')
