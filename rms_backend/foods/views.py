@@ -196,9 +196,9 @@ class FoodItemViewSet(viewsets.ViewSet):
         category_id = request.data.get('category_id')
         if category_id:
             category = get_object_or_404(Category, id=category_id, tenant=user.tenant)
-            request.data._mutable = True
+            # request.data._mutable = True
             request.data['category'] = category.id
-            request.data._mutable = False
+            # request.data._mutable = False
 
         serializer = FoodItemSerializer(food_item, data=request.data, partial=True)
         if serializer.is_valid():
