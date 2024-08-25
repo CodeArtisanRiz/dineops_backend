@@ -46,7 +46,8 @@ class User(AbstractUser):
         ('admin', 'Admin'),
         ('manager', 'Manager'),
         ('staff', 'Staff'),
-        ('customer', 'Customer'),
+        ('customer', 'Customer'), # Restaurant Customer User.
+        ('guest', 'Guest'), # Hotel Guest User.
     ]
     tenant = models.ForeignKey('Tenant', on_delete=models.CASCADE, null=True, blank=True)
     # is_tenant_admin = models.BooleanField(default=False)
