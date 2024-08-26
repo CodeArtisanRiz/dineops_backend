@@ -1,32 +1,76 @@
+# hotel/serializers.py
+
 from rest_framework import serializers
-from .models import Room, Reservation, RoomHistory
-from django.utils.dateparse import parse_datetime
+from .models import Room, Reservation
+from datetime import datetime
+from django.db import transaction
 
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        fields = ['id', 'name', 'status']
-
-    def create(self, validated_data):
-        validated_data['tenant'] = self.context['request'].user.tenant
-        return super().create(validated_data)
+        fields = ['id', 'number', 'price', 'type', 'status', 'bookings', 'past_bookings']
 
 class ReservationSerializer(serializers.ModelSerializer):
-    check_in = serializers.DateTimeField(input_formats=['%Y-%m-%dT%H:%M:%S.%fZ', 'iso-8601'])
-    check_out = serializers.DateTimeField(input_formats=['%Y-%m-%dT%H:%M:%S.%fZ', 'iso-8601'], required=False, allow_null=True)
+    rooms = RoomSerializer(many=True, read_only=True)
+    room_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Room.objects.all(),
+        many=True,
+        write_only=True,
+        source='rooms'
+    )
 
     class Meta:
         model = Reservation
-        fields = ['id', 'guest', 'room', 'check_in', 'check_out', 'tenant']
+        fields = ['id', 'guest_name', 'check_in_date', 'check_out_date', 'rooms', 'room_ids', 'booking_date']
 
-    def to_internal_value(self, data):
-        if 'check_in' in data and isinstance(data['check_in'], str):
-            data['check_in'] = parse_datetime(data['check_in'])
-        if 'check_out' in data and isinstance(data['check_out'], str):
-            data['check_out'] = parse_datetime(data['check_out'])
-        return super().to_internal_value(data)
+    def validate(self, data):
+        check_in = data.get('check_in_date')
+        check_out = data.get('check_out_date')
+        rooms = data.get('rooms')  # Access via source='rooms'
 
-class RoomHistorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RoomHistory
-        fields = ['id', 'reservation', 'room', 'start_date', 'end_date']
+        if check_in and check_out:
+            if check_in >= check_out:
+                raise serializers.ValidationError("Check-out date must be after check-in date.")
+            if check_in < timezone.now():
+                raise serializers.ValidationError("Check-in date cannot be in the past.")
+        
+        if not rooms:
+            raise serializers.ValidationError("At least one room must be selected for reservation.")
+        return data
+
+    @transaction.atomic
+    def create(self, validated_data):
+        rooms = validated_data.pop('rooms')
+        guest_name = validated_data.get('guest_name')
+        check_in_date = validated_data.get('check_in_date')
+        check_out_date = validated_data.get('check_out_date')
+
+        # Perform validation on rooms
+        for room in rooms:
+            if room.status != 'available':
+                raise serializers.ValidationError(f"Room {room.number} is not available for booking.")
+            for booking in room.bookings:
+                existing_check_in = datetime.fromisoformat(booking['check_in_date'])
+                existing_check_out = datetime.fromisoformat(booking['check_out_date'])
+                if (check_in_date <= existing_check_out) and (check_out_date >= existing_check_in):
+                    raise serializers.ValidationError(
+                        f"Room {room.number} is already booked for the selected dates."
+                    )
+
+        # Create the reservation
+        reservation = Reservation.objects.create(**validated_data)
+
+        # Assign rooms to the reservation
+        reservation.rooms.set(rooms)
+
+        # Update room bookings
+        for room in rooms:
+            booking_detail = {
+                'guest_name': guest_name,
+                'check_in_date': check_in_date.isoformat(),
+                'check_out_date': check_out_date.isoformat(),
+            }
+            room.bookings.append(booking_detail)
+            room.save()
+
+        return reservation

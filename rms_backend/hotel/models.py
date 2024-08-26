@@ -1,36 +1,42 @@
+# hotel/models.py
+
 from django.db import models
-from accounts.models import Tenant, User
 from django.utils import timezone
 
 class Room(models.Model):
-    ROOM_STATUS_CHOICES = [
+    STATUS_CHOICES = [
         ('available', 'Available'),
-        ('occupied', 'Occupied'),
         ('maintenance', 'Maintenance'),
     ]
-    
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True)
-    name = models.CharField(max_length=100)
-    status = models.CharField(max_length=20, choices=ROOM_STATUS_CHOICES, default='available')
-    
+    number = models.CharField(max_length=10, unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    type = models.CharField(max_length=50)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='available')
+    bookings = models.JSONField(default=list)
+    past_bookings = models.JSONField(default=list)
+
     def __str__(self):
-        return f"{self.name} - {self.get_status_display()}"
+        return f"Room {self.number} ({self.type}) - {self.status}"
+
 
 class Reservation(models.Model):
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True)
-    guest = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True)
-    check_in = models.DateTimeField(default=timezone.now)
-    check_out = models.DateTimeField(null=True, blank=True)
-    
-    def __str__(self):
-        return f"{self.guest.username} - {self.room.name}"
+    guest_name = models.CharField(max_length=100)
+    check_in_date = models.DateTimeField(null=True, blank=True)
+    check_out_date = models.DateTimeField(null=True, blank=True)
+    rooms = models.ManyToManyField(Room, related_name='reservations')
+    booking_date = models.DateTimeField(default=timezone.now)
 
-class RoomHistory(models.Model):
-    reservation = models.ForeignKey(Reservation, on_delete=models.CASCADE, null=True)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True)
-    start_date = models.DateTimeField()
-    end_date = models.DateTimeField(null=True, blank=True)
-    
     def __str__(self):
-        return f"{self.reservation.guest.username} - {self.room.name}"
+        return f"Reservation for {self.guest_name} on {self.booking_date}"
+
+    def check_out(self):
+        # Move current bookings to past bookings
+        for room in self.rooms.all():
+            booking_detail = {
+                'guest_name': self.guest_name,
+                'check_in_date': self.check_in_date.isoformat(),
+                'check_out_date': self.check_out_date.isoformat(),
+            }
+            room.bookings = [b for b in room.bookings if b != booking_detail]
+            room.past_bookings.append(booking_detail)
+            room.save()
