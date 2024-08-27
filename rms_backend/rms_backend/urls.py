@@ -26,3 +26,4 @@ urlpatterns = [
     path('api/orders/', include('order.urls')),  # Include order app URLs
     path('api/hotel/', include('hotel.urls')), # Include hotel app URLs
 ]
+
