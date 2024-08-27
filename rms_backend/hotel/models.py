@@ -20,7 +20,7 @@ class Room(models.Model):
 
 
 class Reservation(models.Model):
-    guest_name = models.CharField(max_length=100)
+    guest_name = models.CharField(max_length=100, default='User')
     check_in_date = models.DateTimeField(null=True, blank=True)
     check_out_date = models.DateTimeField(null=True, blank=True)
     rooms = models.ManyToManyField(Room, related_name='reservations')
