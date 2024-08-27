@@ -19,24 +19,24 @@ class Room(models.Model):
         return f"Room {self.number} ({self.type}) - {self.status}"
 
 
-class Reservation(models.Model):
-    guest_name = models.CharField(max_length=100, default='User')
-    check_in_date = models.DateTimeField(null=True, blank=True)
-    check_out_date = models.DateTimeField(null=True, blank=True)
-    rooms = models.ManyToManyField(Room, related_name='reservations')
-    booking_date = models.DateTimeField(default=timezone.now)
+# class Reservation(models.Model):
+#     guest_name = models.CharField(max_length=100, default='User')
+#     check_in_date = models.DateTimeField(null=True, blank=True)
+#     check_out_date = models.DateTimeField(null=True, blank=True)
+#     rooms = models.ManyToManyField(Room, related_name='reservations')
+#     booking_date = models.DateTimeField(default=timezone.now)
 
-    def __str__(self):
-        return f"Reservation for {self.guest_name} on {self.booking_date}"
+#     def __str__(self):
+#         return f"Reservation for {self.guest_name} on {self.booking_date}"
 
-    def check_out(self):
-        # Move current bookings to past bookings
-        for room in self.rooms.all():
-            booking_detail = {
-                'guest_name': self.guest_name,
-                'check_in_date': self.check_in_date.isoformat(),
-                'check_out_date': self.check_out_date.isoformat(),
-            }
-            room.bookings = [b for b in room.bookings if b != booking_detail]
-            room.past_bookings.append(booking_detail)
-            room.save()
+#     def check_out(self):
+#         # Move current bookings to past bookings
+#         for room in self.rooms.all():
+#             booking_detail = {
+#                 'guest_name': self.guest_name,
+#                 'check_in_date': self.check_in_date.isoformat(),
+#                 'check_out_date': self.check_out_date.isoformat(),
+#             }
+#             room.bookings = [b for b in room.bookings if b != booking_detail]
+#             room.past_bookings.append(booking_detail)
+#             room.save()
