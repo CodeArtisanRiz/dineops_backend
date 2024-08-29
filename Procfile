@@ -1,0 +1,1 @@
+web: gunicorn rms_backend.wsgi:application
