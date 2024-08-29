@@ -27,6 +27,7 @@ SECRET_KEY = 'django-insecure-p41_ww$isrs%%b)$n4*np4h=)ww+2fk75jt^g=cxqsh!3iftel
 DEBUG = True
 
 ALLOWED_HOSTS = [
+    '127.0.0.1',
     'dineops.onrender.com'
     ]
 
