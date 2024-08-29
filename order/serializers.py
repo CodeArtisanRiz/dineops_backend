@@ -16,11 +16,12 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = [
-            'tenant', 'customer', 'order_type', 'table', 'payment_method',
-            'total_price', 'discount', 'coupon_used', 'notes', 'food_items', 
-            'quantity', 'status'
-        ]
+        # fields = [
+        #     'tenant', 'customer', 'order_type', 'table', 'payment_method',
+        #     'total_price', 'discount', 'coupon_used', 'notes', 'food_items', 
+        #     'quantity', 'status'
+        # ]
+        fields = '__all__'
 
     def validate(self, data):
         if len(data['food_items']) != len(data['quantity']):

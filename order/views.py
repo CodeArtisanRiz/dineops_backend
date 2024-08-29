@@ -13,7 +13,7 @@ import logging
 User = get_user_model()
 logger = logging.getLogger(__name__)
 
-class OrderViewSet(viewsets.ViewSet):
+class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderSerializer
     
