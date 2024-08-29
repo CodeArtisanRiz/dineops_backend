@@ -8,3 +8,5 @@ requests
 # django-countries ##INSTALLED_APPS = ['countries']
 # django-cities #INSTALLED_APPS = ['cities']
 python-decouple
+gunicorn
+whitenoise
