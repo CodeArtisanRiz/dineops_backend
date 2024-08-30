@@ -5,8 +5,10 @@ djongo
 django-cors-headers
 Pillow
 requests
-# django-countries ##INSTALLED_APPS = ['countries']
-# django-cities #INSTALLED_APPS = ['cities']
+# Server
 python-decouple
 gunicorn
 whitenoise
+
+# django-countries ##INSTALLED_APPS = ['countries']
+# django-cities #INSTALLED_APPS = ['cities']
