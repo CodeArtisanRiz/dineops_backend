@@ -56,6 +56,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
     phone = models.CharField(max_length=15, blank=True)
     address = models.TextField(blank=True)
+    dob = models.DateField(null=True, blank=True)
 
     def __str__(self):
         return self.username
