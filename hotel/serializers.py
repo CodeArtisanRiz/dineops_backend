@@ -1,9 +1,12 @@
 from rest_framework import serializers
 from .models import Room
-from accounts.models import User
+# from accounts.models import User
+
+# from rest_framework import serializers
+# from .models import Room
 
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        # fields = ['id', 'room_number', 'room_type', 'price', 'is_available', 'description','status']
         fields = '__all__'
+        read_only_fields = ['tenant']
