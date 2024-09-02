@@ -5,21 +5,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 def get_or_create_user(guest_data):
-    dob = guest_data['dob'].strftime('%d-%m-%Y')  # Format the date of birth
-    existing_user = User.objects.filter(username=guest_data['phone']).first()
-    if existing_user:
-        logger.info("User with phone number %s already exists", guest_data['phone'])
-        return existing_user, False
+    user, created = User.objects.get_or_create(
+        id=guest_data.get('id'),
+        defaults={
+            'first_name': guest_data.get('first_name'),
+            'last_name': guest_data.get('last_name'),
+            'phone': guest_data.get('phone'),
+            'dob': guest_data.get('dob'),
+            'address': guest_data.get('address'),
+        }
+    )
+    if created:
+        logger.info(f"Created new user: {user.id}")
+        # Use a temporary variable to store dob as a string for password creation
+        dob_str = guest_data.get('dob').strftime('%Y%m%d') if guest_data.get('dob') else 'defaultpassword'
+        user.set_password(dob_str)
+        user.save()
     else:
-        guest_user = User.objects.create_user(
-            username=guest_data['phone'],
-            password=dob,  # Use formatted date of birth as password
-            first_name=guest_data['first_name'],
-            last_name=guest_data['last_name'],
-            address=guest_data['address'],
-            role='guest'  # Explicitly set the role to 'guest'
-        )
-        return guest_user, True
+        logger.info(f"Found existing user: {user.id}")
+    return user, created
 
 def assign_rooms_to_booking(rooms_data, booking):
     for room in rooms_data:
