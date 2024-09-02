@@ -2,17 +2,15 @@ import logging
 from rest_framework import viewsets, status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Room, Booking
+from .models import Room
+from .models import Booking
 from accounts.models import Tenant, User
-from .serializers import RoomSerializer, GuestSerializer, BookingSerializer, BaseGuestSerializer
-from django.contrib.auth import get_user_model
-from django.db import transaction
-
-from rest_framework.views import APIView
+from .serializers import RoomSerializer, BookingSerializer, BaseGuestSerializer
 from rest_framework import status
-from .serializers import GuestSerializer
 from accounts.models import User
-from django.db import transaction
+from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import ValidationError
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -59,17 +57,6 @@ class RoomViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response({"message": f"Room - {room_number} deleted"}, status=status.HTTP_204_NO_CONTENT)
 
-
-
-import logging
-from rest_framework import viewsets, status, generics
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from .models import Booking, Room
-from .serializers import BookingSerializer, BaseGuestSerializer
-from accounts.models import User
-
-logger = logging.getLogger(__name__)
 
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()

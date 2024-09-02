@@ -8,5 +8,4 @@ router.register(r'bookings', BookingViewSet)  # Add the booking route
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('createuser/', CreateUserView.as_view(), name='create-user'),  # Add the new endpoint
 ]

@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import Room, Booking
+from .models import Room
+from .models import Booking
+# from .models import Service, ServiceCategory
 from accounts.models import User
 from django.db import transaction
 from .utils import get_or_create_user
@@ -17,12 +19,12 @@ class BaseGuestSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone', 'dob', 'address']
 
-class GuestSerializer(BaseGuestSerializer):
-    class Meta(BaseGuestSerializer.Meta):
-        fields = BaseGuestSerializer.Meta.fields
+# class GuestSerializer(BaseGuestSerializer):
+#     class Meta(BaseGuestSerializer.Meta):
+#         fields = BaseGuestSerializer.Meta.fields
 
 class BookingSerializer(serializers.ModelSerializer):
-    guests = GuestSerializer(many=True)
+    guests = BaseGuestSerializer(many=True)
     rooms = serializers.PrimaryKeyRelatedField(queryset=Room.objects.all(), many=True)
 
     class Meta:
