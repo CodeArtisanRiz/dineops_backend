@@ -1,18 +1,18 @@
 import logging
-from rest_framework import viewsets, status
+from rest_framework import viewsets, status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError
-from django.shortcuts import get_object_or_404
-from django.utils import timezone
-from .models import Booking, Room
+from .models import Room, Booking
 from accounts.models import Tenant, User
-from .serializers import RoomSerializer
+from .serializers import RoomSerializer, GuestSerializer, BookingSerializer, BaseGuestSerializer
 from django.contrib.auth import get_user_model
-from .serializers import BookingSerializer
 from django.db import transaction
 
-
+from rest_framework.views import APIView
+from rest_framework import status
+from .serializers import GuestSerializer
+from accounts.models import User
+from django.db import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -61,119 +61,79 @@ class RoomViewSet(viewsets.ModelViewSet):
 
 
 
+import logging
+from rest_framework import viewsets, status, generics
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import Booking, Room
+from .serializers import BookingSerializer, BaseGuestSerializer
+from accounts.models import User
+
 logger = logging.getLogger(__name__)
+
+class CreateUserView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = BaseGuestSerializer
 
 class BookingViewSet(viewsets.ModelViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
     permission_classes = [IsAuthenticated]
 
-    def create(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):
         try:
-            with transaction.atomic():
-                logger.info("Received booking request")
-                # Validate request data
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                logger.info("Booking data validated successfully")
-
-                # Extract the validated data
-                validated_data = serializer.validated_data
-                guests_data = validated_data.pop('guests')
-                scenario = validated_data.get('scenario', 1)
-                tenant = self.get_tenant_from_request(request)
-
-                total_amount = 0
-
-                # Create the booking instance
-                booking = Booking.objects.create(tenant=tenant, **validated_data)
-                logger.info(f"Booking created: {booking}")
-
-                # Handle guest creation, room assignment, and services
-                for guest_data in guests_data:
-                    rooms = guest_data.pop('rooms')
-                    services = guest_data.pop('services', [])
-                    identification = guest_data.pop('identification', None)
-
-                    # Create guest user
-                    guest_user = self.create_guest_user(guest_data)
-                    booking.guests.add(guest_user)
-
-                    # Assign rooms and calculate total amounts
-                    guest_total = self.assign_rooms_and_services(booking, guest_user, rooms, services)
-                    total_amount += guest_total
-
-                    # Handle identification based on scenario
-                    self.assign_identification(booking, guest_user, rooms, identification, scenario)
-                    logger.info(f"Guest added: {guest_user.username} with rooms and services")
-
-                # Finalize booking total and save
-                booking.total_amount = total_amount
-                booking.save()
-                logger.info(f"Booking finalized with total amount: {total_amount}")
-
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-        except ValidationError as e:
-            logger.error(f"Validation error: {str(e)}")
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            response = super().list(request, *args, **kwargs)
+            return response
         except Exception as e:
-            logger.error(f"Unexpected error: {str(e)}")
-            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error("Error retrieving bookings: %s", e)
+            return Response({"detail": "An error occurred while retrieving bookings.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def get_tenant_from_request(self, request):
-        user = request.user
-        if user.is_superuser:
-            tenant_id = request.data.get('tenant')
-            if not tenant_id:
-                raise ValidationError("Superuser must provide tenant ID.")
-            tenant = Tenant.objects.get(id=tenant_id)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                self.perform_create(serializer)
+                headers = self.get_success_headers(serializer.data)
+                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            except Exception as e:
+                logger.error("Error creating booking: %s", e)
+                return Response({"detail": "An error occurred while creating the booking.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            tenant = user.tenant
-        logger.info(f"Tenant resolved: {tenant}")
-        return tenant
+            logger.error("Serializer errors: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def create_guest_user(self, guest_data):
-        guest_user = User.objects.create_user(
-            username=guest_data['phone'],
-            password=guest_data['dob'],  # Simplified for demo
-            role='guest',
-            first_name=guest_data['first_name'],
-            last_name=guest_data['last_name'],
-            dob=guest_data['dob'],
-            address=guest_data['address'],
-            phone=guest_data['phone']
-        )
-        logger.info(f"Guest user created: {guest_user.username}")
-        return guest_user
+    def perform_create(self, serializer):
+        serializer.save()
 
-    def assign_rooms_and_services(self, booking, guest_user, rooms, services):
-        total_guest_amount = 0
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            try:
+                self.perform_update(serializer)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error("Error updating booking: %s", e)
+                return Response({"detail": "An error occurred while updating the booking.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            logger.error("Serializer errors: %s", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Assign rooms to the guest and update room statuses
-        for room in rooms:
-            room_instance = Room.objects.get(id=room)
-            room_instance.status = 'occupied'
-            room_instance.save()
-            booking.rooms.add(room_instance)
-            total_guest_amount += room_instance.price
-            logger.info(f"Room assigned: {room_instance.room_number} to guest: {guest_user.username}")
-
-        # Calculate service amounts
-        for service in services:
-            total_guest_amount += service['amount']
-            logger.info(f"Service assigned: {service['name']} to guest: {guest_user.username}")
-
-        return total_guest_amount
-
-    def assign_identification(self, booking, guest_user, rooms, identification, scenario):
-        if scenario == 1:
-            if not booking.identification:
-                booking.identification = identification or "No ID Provided"
-        elif scenario == 2:
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            # Set associated rooms to available
+            rooms = instance.rooms.all()
             for room in rooms:
-                if room not in booking.identification:
-                    booking.identification[room] = identification or "No ID Provided"
-        elif scenario == 3:
-            booking.identification[guest_user.id] = identification or "No ID Provided"
-        logger.info(f"Identification assigned for scenario {scenario}")
+                room.status = 'available'
+                room.booking_id = None
+                room.save()
+
+            self.perform_destroy(instance)
+            return Response({"booking_id": instance.id, "detail": "deleted"}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            logger.error("Error deleting booking: %s", e)
+            return Response({"detail": "An error occurred while deleting the booking.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
