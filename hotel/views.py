@@ -2,15 +2,11 @@ import logging
 from rest_framework import viewsets, status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Room
-from .models import Booking
+from .models import Room, Booking
 from accounts.models import Tenant, User
 from .serializers import RoomSerializer, BookingSerializer, BaseGuestSerializer
-from rest_framework import status
-from accounts.models import User
-from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import ValidationError
-import logging
+from django.shortcuts import get_object_or_404
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +53,6 @@ class RoomViewSet(viewsets.ModelViewSet):
         self.perform_destroy(instance)
         return Response({"message": f"Room - {room_number} deleted"}, status=status.HTTP_204_NO_CONTENT)
 
-
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = BaseGuestSerializer
@@ -84,6 +79,7 @@ class BookingViewSet(viewsets.ModelViewSet):
                 return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
             except Exception as e:
                 logger.error("Error creating booking: %s", e)
+                logger.debug(f"Request data: {request.data}")
                 return Response({"detail": "An error occurred while creating the booking.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
             logger.error("Serializer errors: %s", serializer.errors)
