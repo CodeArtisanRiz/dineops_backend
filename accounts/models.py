@@ -57,6 +57,7 @@ class User(AbstractUser):
     phone = models.CharField(max_length=15, blank=True)
     address = models.TextField(blank=True)
     dob = models.DateField(null=True, blank=True)
+    identification = models.JSONField(default=list, blank=True)  # List of URLs
 
     def __str__(self):
         return self.username

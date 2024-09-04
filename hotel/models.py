@@ -12,12 +12,13 @@ class Room(models.Model):
         ('cleaning', 'Cleaning'),
     ]
     room_number = models.CharField(max_length=10, unique=True)
-    room_type = models.CharField(max_length=50)
+    room_type = models.CharField(max_length=50, default='')  # Added field
+    beds = models.CharField(max_length=50, default='')  # Added field
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.TextField(blank=True)
+    description = models.TextField(blank=True)  # Added field
+    images = models.JSONField(default=list, blank=True)  # Added field
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
-    booking_id = models.ForeignKey('Booking', on_delete=models.SET_NULL, null=True, blank=True, related_name='booked_rooms', default=None)
     booked_periods = models.JSONField(default=list, blank=True)  # Store booked time periods
 
     def __str__(self):
@@ -47,7 +48,7 @@ class Booking(models.Model):
     rooms = models.ManyToManyField(Room, blank=True)
     total_amount_per_booking = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     scenario = models.IntegerField(choices=ID_CHOICES, default=1)  # ID scenario choice
-    identification = models.JSONField(blank=True, null=True)
+    # identification = models.JSONField(blank=True, null=True)
     room_details = models.JSONField(blank=True, null=True)  # Store room-specific data
 
     def __str__(self):

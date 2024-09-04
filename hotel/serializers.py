@@ -10,12 +10,14 @@ logger = logging.getLogger(__name__)
 class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
-        fields = ['id', 'room_number', 'price', 'status', 'booking_id', 'booked_periods']
+        fields = ['id', 'room_number', 'room_type', 'beds', 'price', 'description', 'images', 'status', 'booked_periods']
 
 class BaseGuestSerializer(serializers.ModelSerializer):
+    identification = serializers.ListField(child=serializers.URLField(), required=False)  # List of URLs
+
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'phone', 'dob', 'address']
+        fields = ['id', 'first_name', 'last_name', 'phone', 'dob', 'address', 'identification']
 
 class BookingSerializer(serializers.ModelSerializer):
     guests = BaseGuestSerializer(many=True)
@@ -26,7 +28,7 @@ class BookingSerializer(serializers.ModelSerializer):
         model = Booking
         fields = [
             'id', 'booking_date', 'from_date', 'to_date', 'status', 'scenario', 'guests', 
-            'rooms', 'total_amount_per_booking', 'identification', 'room_details'
+            'rooms', 'room_details', 'total_amount_per_booking'
         ]
 
     def validate(self, data):
@@ -35,6 +37,9 @@ class BookingSerializer(serializers.ModelSerializer):
         scenario = data.get('scenario', 1)
         from_date = data.get('from_date')
         to_date = data.get('to_date')
+
+        if from_date >= to_date:
+            raise serializers.ValidationError("from_date must be before to_date.")
 
         if scenario == 1 and len(guests_data) != 1:
             raise serializers.ValidationError("Scenario 1 requires exactly one guest.")
@@ -80,16 +85,14 @@ class BookingSerializer(serializers.ModelSerializer):
 
                 for room in rooms_data:
                     room.booked_periods.append({
+                        'booking_id': booking.id,
                         'from_date': from_date.strftime('%Y-%m-%d'),
                         'to_date': to_date.strftime('%Y-%m-%d')
                     })
-                    room.booking_id = booking
                     room.save()
 
                 for room_detail in room_details:
-                    total_amount = room_detail.get('total_amount', 0)
-                    if total_amount is None:
-                        total_amount = 0
+                    total_amount = float(room_detail.get('total_amount', 0))
                     total_amount_per_booking += total_amount
 
                 booking.guests.set(guest_users)
