@@ -62,61 +62,50 @@ class BookingViewSet(viewsets.ModelViewSet):
     serializer_class = BookingSerializer
     permission_classes = [IsAuthenticated]
 
-    def list(self, request, *args, **kwargs):
-        try:
-            response = super().list(request, *args, **kwargs)
-            return response
-        except Exception as e:
-            logger.error("Error retrieving bookings: %s", e)
-            return Response({"detail": "An error occurred while retrieving bookings.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                self.perform_create(serializer)
-                headers = self.get_success_headers(serializer.data)
-                return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-            except Exception as e:
-                logger.error("Error creating booking: %s", e)
-                logger.debug(f"Request data: {request.data}")
-                return Response({"detail": "An error occurred while creating the booking.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            logger.error("Serializer errors: %s", serializer.errors)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        try:
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        except Exception as e:
+            logger.error("An error occurred while creating the booking: %s", e)
+            return Response({"detail": "An error occurred while creating the booking.", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def perform_create(self, serializer):
         serializer.save()
 
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if serializer.is_valid():
-            try:
-                self.perform_update(serializer)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except Exception as e:
-                logger.error("Error updating booking: %s", e)
-                return Response({"detail": "An error occurred while updating the booking.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            logger.error("Serializer errors: %s", serializer.errors)
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def checkin(self, request, pk=None):
+        booking = self.get_object()
+        room_number = request.data.get('room_number')
+        check_in = request.data.get('check_in')
 
-    def destroy(self, request, *args, **kwargs):
-        instance = self.get_object()
-        try:
-            # Set associated rooms to available
-            rooms = instance.rooms.all()
-            for room in rooms:
-                room.status = 'available'
-                room.booking_id = None
-                room.save()
+        for room_detail in booking.room_details:
+            if room_detail['room_number'] == room_number:
+                room_detail['check_in'] = check_in
+                break
 
-            self.perform_destroy(instance)
-            return Response({"booking_id": instance.id, "detail": "deleted"}, status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            logger.error("Error deleting booking: %s", e)
-            return Response({"detail": "An error occurred while deleting the booking.", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        booking.save()
+        return Response({"detail": "Check-in successful."}, status=status.HTTP_200_OK)
+
+    def checkout(self, request, pk=None):
+        booking = self.get_object()
+        room_number = request.data.get('room_number')
+        check_out = request.data.get('check_out')
+        total_amount = request.data.get('total_amount')
+        discount = request.data.get('discount')
+        net_amount = request.data.get('net_amount')
+
+        for room_detail in booking.room_details:
+            if room_detail['room_number'] == room_number:
+                room_detail['check_out'] = check_out
+                room_detail['total_amount'] = total_amount
+                room_detail['discount'] = discount
+                room_detail['net_amount'] = net_amount
+                break
+
+        booking.save()
+        return Response({"detail": "Check-out successful."}, status=status.HTTP_200_OK)
 
 

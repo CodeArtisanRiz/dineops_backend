@@ -13,7 +13,7 @@ class RoomSerializer(serializers.ModelSerializer):
         fields = ['id', 'room_number', 'room_type', 'beds', 'price', 'description', 'images', 'status', 'booked_periods']
 
 class BaseGuestSerializer(serializers.ModelSerializer):
-    identification = serializers.ListField(child=serializers.URLField(), required=False)  # List of URLs
+    identification = serializers.ListField(child=serializers.URLField(), required=False)
 
     class Meta:
         model = User
@@ -27,19 +27,15 @@ class BookingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Booking
         fields = [
-            'id', 'booking_date', 'from_date', 'to_date', 'status', 'scenario', 'guests', 
-            'rooms', 'room_details', 'total_amount_per_booking'
+            'id', 'booking_date', 'status', 'scenario', 'guests', 
+            'rooms', 'total_amount_per_booking', 'room_details'
         ]
 
     def validate(self, data):
         guests_data = data.get('guests', [])
         rooms_data = data.get('rooms', [])
         scenario = data.get('scenario', 1)
-        from_date = data.get('from_date')
-        to_date = data.get('to_date')
-
-        if from_date >= to_date:
-            raise serializers.ValidationError("from_date must be before to_date.")
+        room_details = data.get('room_details', [])
 
         if scenario == 1 and len(guests_data) != 1:
             raise serializers.ValidationError("Scenario 1 requires exactly one guest.")
@@ -51,10 +47,15 @@ class BookingSerializer(serializers.ModelSerializer):
         for room in rooms_data:
             if room.status != 'available':
                 raise serializers.ValidationError(f"Room {room.id} is not available.")
-            # Check if the room is available for the requested date range
             for period in room.booked_periods:
-                if (from_date <= period['to_date'] and to_date >= period['from_date']):
-                    raise serializers.ValidationError(f"Room {room.id} is already booked for the requested date range.")
+                for detail in room_details:
+                    if room.room_number == detail['room_number']:
+                        from_date = detail.get('from_date')
+                        to_date = detail.get('to_date')
+                        if from_date >= to_date:
+                            raise serializers.ValidationError(f"to_date must be after from_date for room {detail['room_number']}.")
+                        if (from_date <= period['to_date'] and to_date >= period['from_date']):
+                            raise serializers.ValidationError(f"Room {room.id} is already booked for the requested date range.")
 
         return data
 
@@ -63,8 +64,6 @@ class BookingSerializer(serializers.ModelSerializer):
         rooms_data = validated_data.pop('rooms')
         room_details = validated_data.pop('room_details')
         scenario = validated_data.get('scenario', 1)
-        from_date = validated_data.get('from_date')
-        to_date = validated_data.get('to_date')
         tenant = self.context['request'].user.tenant if not self.context['request'].user.is_superuser else validated_data.pop('tenant')
         total_amount_per_booking = 0
 
@@ -84,12 +83,14 @@ class BookingSerializer(serializers.ModelSerializer):
                     guest_users.append(guest_user)
 
                 for room in rooms_data:
-                    room.booked_periods.append({
-                        'booking_id': booking.id,
-                        'from_date': from_date.strftime('%Y-%m-%d'),
-                        'to_date': to_date.strftime('%Y-%m-%d')
-                    })
-                    room.save()
+                    for detail in room_details:
+                        if room.room_number == detail['room_number']:
+                            room.booked_periods.append({
+                                'booking_id': booking.id,
+                                'from_date': detail['from_date'],
+                                'to_date': detail['to_date']
+                            })
+                            room.save()
 
                 for room_detail in room_details:
                     total_amount = float(room_detail.get('total_amount', 0))

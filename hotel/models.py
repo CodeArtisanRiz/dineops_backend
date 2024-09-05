@@ -41,8 +41,8 @@ class Booking(models.Model):
 
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
     booking_date = models.DateTimeField(default=timezone.now, null=True, blank=True)
-    from_date = models.DateField(null=True, blank=True)
-    to_date = models.DateField(null=True, blank=True)
+    # from_date = models.DateField(null=True, blank=True)
+    # to_date = models.DateField(null=True, blank=True)
     status = models.IntegerField(choices=STATUS_CHOICES, default=1)
     guests = models.ManyToManyField(User, related_name='bookings', blank=True)
     rooms = models.ManyToManyField(Room, blank=True)
@@ -54,9 +54,9 @@ class Booking(models.Model):
     def __str__(self):
         return f"Booking {self.id} - Tenant: {self.tenant} - Status: {self.get_status_display()}"
 
-    def save(self, *args, **kwargs):
-        logger.debug(f"Saving booking with from_date: {self.from_date}, to_date: {self.to_date}")
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     logger.debug(f"Saving booking with from_date: {self.from_date}, to_date: {self.to_date}")
+    #     super().save(*args, **kwargs)
 
 # class ServiceCategory(models.Model):
 #     name = models.CharField(max_length=50)
