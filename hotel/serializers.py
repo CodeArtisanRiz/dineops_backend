@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Room, Booking
+from .models import Room, Booking, ServiceCategory, Service
 from accounts.models import User
 from django.db import transaction
 from .utils import get_or_create_user
@@ -18,6 +18,18 @@ class BaseGuestSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'first_name', 'last_name', 'phone', 'dob', 'address', 'identification']
+
+class ServiceCategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceCategory
+        fields = ['id', 'name', 'sub_category', 'description', 'status']
+
+class ServiceSerializer(serializers.ModelSerializer):
+    category = serializers.PrimaryKeyRelatedField(queryset=ServiceCategory.objects.all())
+
+    class Meta:
+        model = Service
+        fields = ['id', 'name', 'category', 'description', 'price']
 
 class BookingSerializer(serializers.ModelSerializer):
     guests = BaseGuestSerializer(many=True)
@@ -96,6 +108,14 @@ class BookingSerializer(serializers.ModelSerializer):
                     total_amount = float(room_detail.get('total_amount', 0))
                     total_amount_per_booking += total_amount
 
+                    # Process opted services
+                    opted_services = room_detail.get('opted_services', [])
+                    for service in opted_services:
+                        service_obj = Service.objects.get(id=service['id'])
+                        service['name'] = service_obj.name
+                        service['category'] = service_obj.category.name
+                        service['price'] = str(service_obj.price)
+
                 booking.guests.set(guest_users)
                 booking.rooms.set(rooms_data)
                 booking.room_details = room_details
@@ -111,3 +131,54 @@ class BookingSerializer(serializers.ModelSerializer):
             logger.debug(f"Rooms data: {rooms_data}")
             logger.debug(f"Room details: {room_details}")
             raise e
+
+class AddServiceToRoomSerializer(serializers.Serializer):
+    booking_id = serializers.IntegerField()
+    room_id = serializers.IntegerField()
+    service_id = serializers.IntegerField()
+
+    def validate(self, data):
+        booking_id = data.get('booking_id')
+        room_id = data.get('room_id')
+        service_id = data.get('service_id')
+
+        try:
+            booking = Booking.objects.get(id=booking_id)
+        except Booking.DoesNotExist:
+            raise serializers.ValidationError("Booking does not exist.")
+
+        try:
+            room = Room.objects.get(id=room_id)
+        except Room.DoesNotExist:
+            raise serializers.ValidationError("Room does not exist.")
+
+        try:
+            service = Service.objects.get(id=service_id)
+        except Service.DoesNotExist:
+            raise serializers.ValidationError("Service does not exist.")
+
+        data['booking'] = booking
+        data['room'] = room
+        data['service'] = service
+
+        return data
+
+    def save(self):
+        booking = self.validated_data['booking']
+        room = self.validated_data['room']
+        service = self.validated_data['service']
+
+        for room_detail in booking.room_details:
+            if room_detail['room_number'] == room.room_number:
+                if 'opted_services' not in room_detail:
+                    room_detail['opted_services'] = []
+                room_detail['opted_services'].append({
+                    'id': service.id,
+                    'name': service.name,
+                    'category': service.category.name,
+                    'price': str(service.price)
+                })
+                break
+
+        booking.save()
+        return booking

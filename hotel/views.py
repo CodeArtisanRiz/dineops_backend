@@ -2,11 +2,12 @@ import logging
 from rest_framework import viewsets, status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Room, Booking
+from .models import Room, Booking, ServiceCategory, Service
 from accounts.models import Tenant, User
-from .serializers import RoomSerializer, BookingSerializer, BaseGuestSerializer
+from .serializers import RoomSerializer, BookingSerializer, BaseGuestSerializer, ServiceCategorySerializer, ServiceSerializer, AddServiceToRoomSerializer
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
+from rest_framework.decorators import action
 
 logger = logging.getLogger(__name__)
 
@@ -107,5 +108,22 @@ class BookingViewSet(viewsets.ModelViewSet):
 
         booking.save()
         return Response({"detail": "Check-out successful."}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'], url_path='add-service')
+    def add_service(self, request):
+        serializer = AddServiceToRoomSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        booking = serializer.save()
+        return Response(BookingSerializer(booking).data, status=status.HTTP_200_OK)
+
+class ServiceCategoryViewSet(viewsets.ModelViewSet):
+    queryset = ServiceCategory.objects.all()
+    serializer_class = ServiceCategorySerializer
+    permission_classes = [IsAuthenticated]
+
+class ServiceViewSet(viewsets.ModelViewSet):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
+    permission_classes = [IsAuthenticated]
 
 

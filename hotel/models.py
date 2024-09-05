@@ -58,21 +58,20 @@ class Booking(models.Model):
     #     logger.debug(f"Saving booking with from_date: {self.from_date}, to_date: {self.to_date}")
     #     super().save(*args, **kwargs)
 
-# class ServiceCategory(models.Model):
-#     name = models.CharField(max_length=50)
-#     sub_category = models.CharField(max_length=50, blank=True, null=True)
-#     description = models.TextField(blank=True)
-#     status = models.BooleanField(default=True)
+class ServiceCategory(models.Model):
+    name = models.CharField(max_length=50)
+    sub_category = models.CharField(max_length=50, blank=True, null=True)
+    description = models.TextField(blank=True)
+    status = models.BooleanField(default=True)
 
-#     def __str__(self):
-#         return self.name
+    def __str__(self):
+        return self.name
 
+class Service(models.Model):
+    name = models.CharField(max_length=100)
+    category = models.ForeignKey(ServiceCategory, on_delete=models.CASCADE)
+    description = models.TextField(blank=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
 
-# class Service(models.Model):
-#     name = models.CharField(max_length=100)
-#     category = models.ForeignKey(ServiceCategory, on_delete=models.CASCADE)
-#     description = models.TextField(blank=True)
-#     price = models.DecimalField(max_digits=10, decimal_places=2)
-
-#     def __str__(self):
-#         return self.name
+    def __str__(self):
+        return self.name
