@@ -5,15 +5,17 @@ from django.utils.crypto import get_random_string
 
 logger = logging.getLogger(__name__)
 
-def get_or_create_user(guest_data):
+def get_or_create_user(guest_data, tenant):
     phone = guest_data.get('phone')
-    user, created = User.objects.get_or_create(phone=phone, defaults={
+    username = f"{tenant.id}_{phone}"  # Set username to tenant+phone
+    user, created = User.objects.get_or_create(username=username, defaults={
         'first_name': guest_data.get('first_name'),
         'last_name': guest_data.get('last_name'),
         'dob': guest_data.get('dob'),
         'address': guest_data.get('address'),
-        'username': phone,  # Set username to phone number
-        'identification': guest_data.get('identification', [])
+        'phone': phone,
+        'tenant': tenant,
+        'role': 'guest'  # Set role to 'guest'
     })
     if not created:
         # Update existing user with new data
@@ -21,7 +23,9 @@ def get_or_create_user(guest_data):
         user.last_name = guest_data.get('last_name')
         user.dob = guest_data.get('dob')
         user.address = guest_data.get('address')
-        user.identification = guest_data.get('identification', [])
+        user.phone = phone
+        user.tenant = tenant
+        user.role = 'guest'
         user.save()
     return user, created
 

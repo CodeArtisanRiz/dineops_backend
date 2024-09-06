@@ -4,6 +4,7 @@ from accounts.models import User
 from django.db import transaction
 from .utils import get_or_create_user
 import logging
+from datetime import date  # Add this import
 
 logger = logging.getLogger(__name__)
 
@@ -14,10 +15,17 @@ class RoomSerializer(serializers.ModelSerializer):
 
 class BaseGuestSerializer(serializers.ModelSerializer):
     identification = serializers.ListField(child=serializers.URLField(), required=False)
+    nationality = serializers.CharField(required=False, allow_blank=True)
+    coming_from = serializers.CharField(required=False, allow_blank=True)
+    going_to = serializers.CharField(required=False, allow_blank=True)
+    cform = serializers.JSONField(required=False)
 
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'phone', 'dob', 'address', 'identification']
+        fields = [
+            'id', 'first_name', 'last_name', 'phone', 'dob', 'address', 
+            'identification', 'nationality', 'coming_from', 'going_to', 'cform'
+        ]
 
 class ServiceCategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -32,7 +40,7 @@ class ServiceSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'category', 'description', 'price']
 
 class BookingSerializer(serializers.ModelSerializer):
-    guests = BaseGuestSerializer(many=True)
+    guests = BaseGuestSerializer(many=True, required=False)  # Make guests optional
     rooms = serializers.PrimaryKeyRelatedField(queryset=Room.objects.all(), many=True)
     room_details = serializers.JSONField()
 
@@ -72,7 +80,7 @@ class BookingSerializer(serializers.ModelSerializer):
         return data
 
     def create(self, validated_data):
-        guests_data = validated_data.pop('guests')
+        guests_data = validated_data.pop('guests', [])
         rooms_data = validated_data.pop('rooms')
         room_details = validated_data.pop('room_details')
         scenario = validated_data.get('scenario', 1)
@@ -91,7 +99,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
                 guest_users = []
                 for guest_data in guests_data:
-                    guest_user, created = get_or_create_user(guest_data)
+                    guest_user, created = get_or_create_user(guest_data, tenant)
                     guest_users.append(guest_user)
 
                 for room in rooms_data:
@@ -99,8 +107,8 @@ class BookingSerializer(serializers.ModelSerializer):
                         if room.room_number == detail['room_number']:
                             room.booked_periods.append({
                                 'booking_id': booking.id,
-                                'from_date': detail['from_date'],
-                                'to_date': detail['to_date']
+                                'from_date': detail['from_date'],  # Assuming from_date is already a string
+                                'to_date': detail['to_date']  # Assuming to_date is already a string
                             })
                             room.save()
 
@@ -115,6 +123,26 @@ class BookingSerializer(serializers.ModelSerializer):
                         service['name'] = service_obj.name
                         service['category'] = service_obj.category.name
                         service['price'] = str(service_obj.price)
+
+                    # Assign guests to room details
+                    room_guests = []
+                    for guest in guests_data:
+                        guest_user = next((gu for gu in guest_users if gu.phone == guest['phone']), None)
+                        if guest_user:
+                            room_guests.append({
+                                'id': guest_user.id,
+                                'first_name': guest_user.first_name,
+                                'last_name': guest_user.last_name,
+                                'phone': guest_user.phone,
+                                'dob': guest_user.dob.isoformat() if isinstance(guest_user.dob, date) else guest_user.dob,  # Convert date to string if it's a date object
+                                'address': guest_user.address,
+                                'identification': guest.get('identification', []),  # Use identification from guest_data
+                                'nationality': guest.get('nationality', ''),
+                                'coming_from': guest.get('coming_from', ''),
+                                'going_to': guest.get('going_to', ''),
+                                'cform': guest.get('cform', {})
+                            })
+                    room_detail['guests'] = room_guests
 
                 booking.guests.set(guest_users)
                 booking.rooms.set(rooms_data)
@@ -131,6 +159,11 @@ class BookingSerializer(serializers.ModelSerializer):
             logger.debug(f"Rooms data: {rooms_data}")
             logger.debug(f"Room details: {room_details}")
             raise e
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        representation.pop('guests', None)  # Remove guests from the root level
+        return representation
 
 class AddServiceToRoomSerializer(serializers.Serializer):
     booking_id = serializers.IntegerField()
