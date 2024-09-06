@@ -215,3 +215,12 @@ class AddServiceToRoomSerializer(serializers.Serializer):
 
         booking.save()
         return booking
+
+class RoomDetailUpdateSerializer(serializers.Serializer):
+    room_number = serializers.CharField(max_length=10)
+    check_in = serializers.DateTimeField(required=False)
+    check_out = serializers.DateTimeField(required=False)
+
+class RoomCheckOutSerializer(serializers.Serializer):
+    room_number = serializers.CharField(max_length=10)
+    check_out = serializers.DateTimeField(required=True)

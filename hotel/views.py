@@ -1,13 +1,14 @@
 import logging
-from rest_framework import viewsets, status, generics
+from rest_framework import viewsets, status, generics, views
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from .models import Room, Booking, ServiceCategory, Service
 from accounts.models import Tenant, User
-from .serializers import RoomSerializer, BookingSerializer, BaseGuestSerializer, ServiceCategorySerializer, ServiceSerializer, AddServiceToRoomSerializer
+from .serializers import RoomSerializer, BookingSerializer, BaseGuestSerializer, ServiceCategorySerializer, ServiceSerializer, AddServiceToRoomSerializer, RoomDetailUpdateSerializer, RoomCheckOutSerializer
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
+from rest_framework.views import APIView
 
 logger = logging.getLogger(__name__)
 
@@ -125,5 +126,77 @@ class ServiceViewSet(viewsets.ModelViewSet):
     queryset = Service.objects.all()
     serializer_class = ServiceSerializer
     permission_classes = [IsAuthenticated]
+
+class UpdateRoomCheckInView(APIView):
+    def patch(self, request, booking_id, room_id):
+        serializer = RoomDetailUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            room_number = serializer.validated_data['room_number']
+            check_in = serializer.validated_data.get('check_in')
+            check_out = serializer.validated_data.get('check_out')
+
+            try:
+                booking = Booking.objects.get(id=booking_id)
+            except Booking.DoesNotExist:
+                return Response({"detail": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            room_found = False
+            for room_detail in booking.room_details:
+                if room_detail['room_number'] == room_number:
+                    if check_in:
+                        room_detail['check_in'] = check_in.isoformat()
+                    if check_out:
+                        room_detail['check_out'] = check_out.isoformat()
+                        # Reset room status and remove booking period
+                        try:
+                            room = Room.objects.get(id=room_id)
+                            room.status = 'available'
+                            room.booked_periods = [period for period in room.booked_periods if period['booking_id'] != booking_id]
+                            room.save()
+                        except Room.DoesNotExist:
+                            return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
+                    room_found = True
+                    break
+
+            if not room_found:
+                return Response({"detail": "Room not found in booking."}, status=status.HTTP_404_NOT_FOUND)
+
+            booking.save()
+            return Response({"detail": "Room details updated successfully."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class UpdateRoomCheckOutView(APIView):
+    def patch(self, request, booking_id, room_id):
+        serializer = RoomCheckOutSerializer(data=request.data)
+        if serializer.is_valid():
+            room_number = serializer.validated_data['room_number']
+            check_out = serializer.validated_data['check_out']
+
+            try:
+                booking = Booking.objects.get(id=booking_id)
+            except Booking.DoesNotExist:
+                return Response({"detail": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            room_found = False
+            for room_detail in booking.room_details:
+                if room_detail['room_number'] == room_number:
+                    room_detail['check_out'] = check_out.isoformat()
+                    # Reset room status and remove booking period
+                    try:
+                        room = Room.objects.get(id=room_id)
+                        room.status = 'available'
+                        room.booked_periods = [period for period in room.booked_periods if period['booking_id'] != booking_id]
+                        room.save()
+                    except Room.DoesNotExist:
+                        return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
+                    room_found = True
+                    break
+
+            if not room_found:
+                return Response({"detail": "Room not found in booking."}, status=status.HTTP_404_NOT_FOUND)
+
+            booking.save()
+            return Response({"detail": "Check-out time updated successfully."}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
