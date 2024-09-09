@@ -7,36 +7,39 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def upload_image(image_file, tenant_name):
-    # Uploads an image file to the remote server and returns the URL.
-    files = {'file': (image_file.name, image_file.read(), image_file.content_type)}
+def upload_image(image_files, tenant_name):
+    # Uploads multiple image files to the remote server and returns the URLs.
+    files = [('file[]', (image_file.name, image_file.read(), image_file.content_type)) for image_file in image_files]
     data = {'tenant': tenant_name}
-    response = requests.post('https://techno3gamma.in/bucket/dineops/handle_food_image.php', files=files, data=data)
+    response = requests.post('https://techno3gamma.in/bucket/dineops/handle_image.php', files=files, data=data)
 
     if response.status_code == 200:
         data = response.json()
-        image_url = data.get('image_url')
-        logger.debug(f'Uploaded image URL: {image_url}')
-        return image_url
+        image_urls = data.get('images')
+        if image_urls:
+            logger.debug(f'Uploaded image URLs: {image_urls}')
+            return image_urls
     return None
 
 def handle_image_upload(request, tenant_name):
     # Helper method to handle image file upload
-    image_file = request.FILES.get('image')
-    if image_file:
-        image_url = upload_image(image_file, tenant_name)
-        if image_url:
-            # Validate URL
+    image_files = request.FILES.getlist('image') or request.FILES.getlist('image[]')
+    if image_files:
+        image_urls = upload_image(image_files, tenant_name)
+        if image_urls:
+            # Validate each URL
             validate = URLValidator()
             try:
-                validate(image_url)
+                for image_url in image_urls:
+                    validate(image_url)
                 request.data._mutable = True  # Make request data mutable
-                request.data['image'] = image_url
+                request.data['images'] = image_urls
                 request.data._mutable = False  # Make request data immutable
-                logger.debug(f'Successfully added image URL to request data: {request.data["image"]}')
+                logger.debug(f'Successfully added image URLs to request data: {request.data["images"]}')
+                return image_urls
             except ValidationError as e:
                 logger.error(f'Invalid image URL: {image_url}, Error: {e}')
                 raise PermissionDenied('Failed to upload image: Invalid URL.')
         else:
             raise PermissionDenied('Failed to upload image.')
-        
+    return None

@@ -7,13 +7,13 @@ import requests
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 import logging
+import json  # Import json module
 
 from .models import FoodItem, Category, Tenant
 from .serializers import FoodItemSerializer, CategorySerializer
 from .utils import handle_image_upload  # Import the utility function
 
 logger = logging.getLogger(__name__)
-
 
 class CategoryViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -45,7 +45,12 @@ class CategoryViewSet(viewsets.ViewSet):
             tenant_name = tenant.tenant_name
 
             # Handle image file upload
-            handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name)
+            if image_urls:
+                request.data._mutable = True  # Make request data mutable
+                request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+                request.data._mutable = False  # Make request data immutable
+                logger.debug(f'Image URLs added to request data: {request.data["image"]}')
 
             serializer = CategorySerializer(data=request.data)
             if serializer.is_valid():
@@ -55,7 +60,13 @@ class CategoryViewSet(viewsets.ViewSet):
         elif user.role in ['admin', 'manager']:
             tenant_name = user.tenant.tenant_name
             # Handle image file upload
-            handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name)
+            if image_urls:
+                request.data._mutable = True  # Make request data mutable
+                request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+                request.data._mutable = False  # Make request data immutable
+                logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+
             serializer = CategorySerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(created_by=user, tenant=user.tenant)
@@ -74,7 +85,13 @@ class CategoryViewSet(viewsets.ViewSet):
         tenant_name = user.tenant.tenant_name if not user.is_superuser else category.tenant.tenant_name
 
         # Handle image file upload
-        handle_image_upload(request, tenant_name)
+        image_urls = handle_image_upload(request, tenant_name)
+        if image_urls:
+            request.data._mutable = True  # Make request data mutable
+            request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+            request.data._mutable = False  # Make request data immutable
+            logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+
         serializer = CategorySerializer(category, data=request.data, partial=True)
         if serializer.is_valid():
             modified_by_list = category.modified_by
@@ -93,7 +110,6 @@ class CategoryViewSet(viewsets.ViewSet):
         category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-            
 class FoodItemViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -118,7 +134,7 @@ class FoodItemViewSet(viewsets.ViewSet):
         user = self.request.user
         if user.is_superuser:
             tenant_id = request.data.get('tenant')
-            category = request.data.get('category')
+            category_id = request.data.get('category')
             if not tenant_id:
                 raise PermissionDenied("Superuser must include tenant ID in request.")
             tenant = get_object_or_404(Tenant, id=tenant_id)
@@ -126,7 +142,12 @@ class FoodItemViewSet(viewsets.ViewSet):
             category = get_object_or_404(Category, id=category_id, tenant=tenant)
 
             # Handle image file upload
-            handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name)
+            if image_urls:
+                request.data._mutable = True  # Make request data mutable
+                request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+                request.data._mutable = False  # Make request data immutable
+                logger.debug(f'Image URLs added to request data: {request.data["image"]}')
 
             serializer = FoodItemSerializer(data=request.data)
             if serializer.is_valid():
@@ -139,7 +160,13 @@ class FoodItemViewSet(viewsets.ViewSet):
             category = get_object_or_404(Category, id=category_id, tenant=user.tenant)
             
             # Handle image file upload
-            handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name)
+            if image_urls:
+                request.data._mutable = True  # Make request data mutable
+                request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+                request.data._mutable = False  # Make request data immutable
+                logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+
             serializer = FoodItemSerializer(data=request.data)
             if serializer.is_valid():
                 serializer.save(created_by=user, tenant=user.tenant, category=category)
@@ -158,15 +185,20 @@ class FoodItemViewSet(viewsets.ViewSet):
         tenant_name = user.tenant.tenant_name if not user.is_superuser else food_item.tenant.tenant_name
 
         # Handle image file upload
-        handle_image_upload(request, tenant_name)
+        image_urls = handle_image_upload(request, tenant_name)
+        if image_urls:
+            request.data._mutable = True  # Make request data mutable
+            request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+            request.data._mutable = False  # Make request data immutable
+            logger.debug(f'Image URLs added to request data: {request.data["image"]}')
 
         # Handle category update
         category_id = request.data.get('category_id')
         if category_id:
             category = get_object_or_404(Category, id=category_id, tenant=user.tenant)
-            # request.data._mutable = True
+            request.data._mutable = True  # Make request data mutable
             request.data['category'] = category.id
-            # request.data._mutable = False
+            request.data._mutable = False  # Make request data immutable
 
         serializer = FoodItemSerializer(food_item, data=request.data, partial=True)
         if serializer.is_valid():
