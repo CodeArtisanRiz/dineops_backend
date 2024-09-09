@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def upload_image(image_files, tenant_name):
     # Uploads multiple image files to the remote server and returns the URLs.
     files = [('file[]', (image_file.name, image_file.read(), image_file.content_type)) for image_file in image_files]
-    data = {'tenant': tenant_name}
+    data = {'tenant': tenant_name, 'imgType': 'food'}
     response = requests.post('https://techno3gamma.in/bucket/dineops/handle_image.php', files=files, data=data)
 
     if response.status_code == 200:
