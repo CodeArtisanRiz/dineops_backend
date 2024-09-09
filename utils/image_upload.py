@@ -7,10 +7,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def upload_image(image_files, tenant_name):
+def upload_image(image_files, tenant_name, img_type):
     # Uploads multiple image files to the remote server and returns the URLs.
     files = [('file[]', (image_file.name, image_file.read(), image_file.content_type)) for image_file in image_files]
-    data = {'tenant': tenant_name, 'imgType': 'food'}
+    data = {'tenant': tenant_name, 'imgType': img_type}
     response = requests.post('https://techno3gamma.in/bucket/dineops/handle_image.php', files=files, data=data)
 
     if response.status_code == 200:
@@ -21,11 +21,11 @@ def upload_image(image_files, tenant_name):
             return image_urls
     return None
 
-def handle_image_upload(request, tenant_name):
+def handle_image_upload(request, tenant_name, img_type):
     # Helper method to handle image file upload
     image_files = request.FILES.getlist('image') or request.FILES.getlist('image[]')
     if image_files:
-        image_urls = upload_image(image_files, tenant_name)
+        image_urls = upload_image(image_files, tenant_name, img_type)
         if image_urls:
             # Validate each URL
             validate = URLValidator()

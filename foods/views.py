@@ -11,7 +11,7 @@ import json  # Import json module
 
 from .models import FoodItem, Category, Tenant
 from .serializers import FoodItemSerializer, CategorySerializer
-from .utils import handle_image_upload  # Import the utility function
+from utils.image_upload import handle_image_upload
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ class CategoryViewSet(viewsets.ViewSet):
             tenant_name = tenant.tenant_name
 
             # Handle image file upload
-            image_urls = handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name, 'food_category')
             if image_urls:
                 request.data._mutable = True  # Make request data mutable
                 request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
@@ -60,7 +60,7 @@ class CategoryViewSet(viewsets.ViewSet):
         elif user.role in ['admin', 'manager']:
             tenant_name = user.tenant.tenant_name
             # Handle image file upload
-            image_urls = handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name, 'food_category')
             if image_urls:
                 request.data._mutable = True  # Make request data mutable
                 request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
@@ -85,7 +85,7 @@ class CategoryViewSet(viewsets.ViewSet):
         tenant_name = user.tenant.tenant_name if not user.is_superuser else category.tenant.tenant_name
 
         # Handle image file upload
-        image_urls = handle_image_upload(request, tenant_name)
+        image_urls = handle_image_upload(request, tenant_name, 'food_category')
         if image_urls:
             request.data._mutable = True  # Make request data mutable
             request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
@@ -142,7 +142,7 @@ class FoodItemViewSet(viewsets.ViewSet):
             category = get_object_or_404(Category, id=category_id, tenant=tenant)
 
             # Handle image file upload
-            image_urls = handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name, 'food_item')
             if image_urls:
                 request.data._mutable = True  # Make request data mutable
                 request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
@@ -160,7 +160,7 @@ class FoodItemViewSet(viewsets.ViewSet):
             category = get_object_or_404(Category, id=category_id, tenant=user.tenant)
             
             # Handle image file upload
-            image_urls = handle_image_upload(request, tenant_name)
+            image_urls = handle_image_upload(request, tenant_name, 'food_item')
             if image_urls:
                 request.data._mutable = True  # Make request data mutable
                 request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
@@ -185,7 +185,7 @@ class FoodItemViewSet(viewsets.ViewSet):
         tenant_name = user.tenant.tenant_name if not user.is_superuser else food_item.tenant.tenant_name
 
         # Handle image file upload
-        image_urls = handle_image_upload(request, tenant_name)
+        image_urls = handle_image_upload(request, tenant_name, 'food_item')
         if image_urls:
             request.data._mutable = True  # Make request data mutable
             request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
