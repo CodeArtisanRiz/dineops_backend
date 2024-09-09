@@ -16,7 +16,7 @@ class Room(models.Model):
     beds = models.CharField(max_length=50, default='')  # Added field
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True)  # Added field
-    images = models.JSONField(default=list, blank=True)  # Added field
+    image = models.JSONField(default=list, blank=True)  # Added field
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
 

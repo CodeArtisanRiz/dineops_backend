@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import Category, FoodItem
-
+import json
 
 # Nested Nested CategorySerializer in FoodItem
 
@@ -36,6 +36,7 @@ class CategorySerializer(serializers.ModelSerializer):
         extra_kwargs = {'tenant': {'required': False}}  # Make tenant not required
 
 class FoodItemSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
     category_id = serializers.PrimaryKeyRelatedField(
         source='category',  # Use the 'category' field for the relationship
         queryset=Category.objects.all()
@@ -53,3 +54,6 @@ class FoodItemSerializer(serializers.ModelSerializer):
     # Custom method to return the category name
     def get_category_name(self, obj):
         return obj.category.name if obj.category else None
+
+    def get_image(self, obj):
+        return json.loads(obj.image) if obj.image else []

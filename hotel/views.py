@@ -1,22 +1,19 @@
 import logging
-from rest_framework import viewsets, status, generics, views
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import Room, ServiceCategory, Service
-# , Booking
-from accounts.models import Tenant, User
-from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer
-# , BookingSerializer, BaseGuestSerializer, AddServiceToRoomSerializer, RoomDetailUpdateSerializer, RoomCheckOutSerializer
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import action
-from rest_framework.views import APIView
+import json  # Import json module
+
+from .models import Room, ServiceCategory, Service
+from accounts.models import Tenant
+from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer
+from utils.image_upload import handle_image_upload  # Import handle_image_upload
 
 logger = logging.getLogger(__name__)
 
-class RoomViewSet(viewsets.ModelViewSet):
-    queryset = Room.objects.all()
-    serializer_class = RoomSerializer
+class RoomViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
@@ -25,182 +22,155 @@ class RoomViewSet(viewsets.ModelViewSet):
             return Room.objects.all()
         return Room.objects.filter(tenant=user.tenant)
 
-    def perform_create(self, serializer):
-        user = self.request.user
-        if user.is_superuser:
-            tenant_id = self.request.data.get('tenant')
-            if not tenant_id:
-                raise ValidationError("Superuser must include tenant ID in request.")
-            tenant = get_object_or_404(Tenant, id=tenant_id)
-            serializer.save(tenant=tenant)
-        else:
-            serializer.save(tenant=user.tenant)
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = RoomSerializer(queryset, many=True)
+        return Response(serializer.data)
 
-    def perform_update(self, serializer):
+    def retrieve(self, request, pk=None):
+        queryset = self.get_queryset()
+        room = get_object_or_404(queryset, pk=pk)
+        serializer = RoomSerializer(room)
+        return Response(serializer.data)
+
+    def create(self, request):
         user = self.request.user
+        tenant_name = user.tenant.tenant_name if not user.is_superuser else None
+
         if user.is_superuser:
-            tenant_id = self.request.data.get('tenant')
+            tenant_id = request.data.get('tenant')
+            if not tenant_id:
+                raise PermissionDenied("Superuser must include tenant ID in request.")
+            tenant = get_object_or_404(Tenant, id=tenant_id)
+            tenant_name = tenant.tenant_name
+
+        # Handle image file upload
+        image_urls = handle_image_upload(request, tenant_name, 'room')
+        if image_urls:
+            request.data._mutable = True  # Make request data mutable
+            request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+            request.data._mutable = False  # Make request data immutable
+            logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+        else:
+            logger.debug('No image URLs returned from handle_image_upload.')
+
+        serializer = RoomSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(tenant=user.tenant if not user.is_superuser else tenant)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, pk=None):
+        user = self.request.user
+        if not user.is_superuser:
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        queryset = self.get_queryset()
+        room = get_object_or_404(queryset, pk=pk)
+        tenant_name = user.tenant.tenant_name if not user.is_superuser else room.tenant.tenant_name
+
+        # Handle image file upload
+        image_urls = handle_image_upload(request, tenant_name, 'room')
+        if image_urls:
+            request.data._mutable = True  # Make request data mutable
+            request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+            request.data._mutable = False  # Make request data immutable
+            logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+        else:
+            logger.debug('No image URLs returned from handle_image_upload.')
+
+        serializer = RoomSerializer(room, data=request.data, partial=True)
+        if serializer.is_valid():
+            tenant_id = request.data.get('tenant')
             if tenant_id:
                 tenant = get_object_or_404(Tenant, id=tenant_id)
                 serializer.save(tenant=tenant)
             else:
                 serializer.save()
-        else:
-            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def destroy(self, request, *args, **kwargs):
+    def destroy(self, request, pk=None):
         user = self.request.user
-        instance = self.get_object()
-        if not user.is_superuser and instance.tenant != user.tenant:
-            raise ValidationError("You do not have permission to delete this room.")
-        room_number = instance.room_number
-        self.perform_destroy(instance)
+        if not user.is_superuser:
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        queryset = self.get_queryset()
+        room = get_object_or_404(queryset, pk=pk)
+        room_number = room.room_number
+        room.delete()
         return Response({"message": f"Room - {room_number} deleted"}, status=status.HTTP_204_NO_CONTENT)
 
-class ServiceCategoryViewSet(viewsets.ModelViewSet):
-    queryset = ServiceCategory.objects.all()
-    serializer_class = ServiceCategorySerializer
+class ServiceCategoryViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
-class ServiceViewSet(viewsets.ModelViewSet):
-    queryset = Service.objects.all()
-    serializer_class = ServiceSerializer
+    def list(self, request):
+        queryset = ServiceCategory.objects.all()
+        serializer = ServiceCategorySerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        queryset = ServiceCategory.objects.all()
+        service_category = get_object_or_404(queryset, pk=pk)
+        serializer = ServiceCategorySerializer(service_category)
+        return Response(serializer.data)
+
+    def create(self, request):
+        serializer = ServiceCategorySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def update(self, request, pk=None):
+        queryset = ServiceCategory.objects.all()
+        service_category = get_object_or_404(queryset, pk=pk)
+        serializer = ServiceCategorySerializer(service_category, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, pk=None):
+        queryset = ServiceCategory.objects.all()
+        service_category = get_object_or_404(queryset, pk=pk)
+        service_category.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ServiceViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
-# class CreateUserView(generics.CreateAPIView):
-#     queryset = User.objects.all()
-#     serializer_class = BaseGuestSerializer
+    def list(self, request):
+        queryset = Service.objects.all()
+        serializer = ServiceSerializer(queryset, many=True)
+        return Response(serializer.data)
 
-# class BookingViewSet(viewsets.ModelViewSet):
-#     queryset = Booking.objects.all()
-#     serializer_class = BookingSerializer
-#     permission_classes = [IsAuthenticated]
+    def retrieve(self, request, pk=None):
+        queryset = Service.objects.all()
+        service = get_object_or_404(queryset, pk=pk)
+        serializer = ServiceSerializer(service)
+        return Response(serializer.data)
 
-#     def create(self, request, *args, **kwargs):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         try:
-#             self.perform_create(serializer)
-#             headers = self.get_success_headers(serializer.data)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-#         except Exception as e:
-#             logger.error("An error occurred while creating the booking: %s", e)
-#             return Response({"detail": "An error occurred while creating the booking.", "error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    def create(self, request):
+        serializer = ServiceSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-#     def perform_create(self, serializer):
-#         serializer.save()
+    def update(self, request, pk=None):
+        queryset = Service.objects.all()
+        service = get_object_or_404(queryset, pk=pk)
+        serializer = ServiceSerializer(service, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-#     def checkin(self, request, pk=None):
-#         booking = self.get_object()
-#         room_number = request.data.get('room_number')
-#         check_in = request.data.get('check_in')
-
-#         for room_detail in booking.room_details:
-#             if room_detail['room_number'] == room_number:
-#                 room_detail['check_in'] = check_in
-#                 break
-
-#         booking.save()
-#         return Response({"detail": "Check-in successful."}, status=status.HTTP_200_OK)
-
-#     def checkout(self, request, pk=None):
-#         booking = self.get_object()
-#         room_number = request.data.get('room_number')
-#         check_out = request.data.get('check_out')
-#         total_amount = request.data.get('total_amount')
-#         discount = request.data.get('discount')
-#         net_amount = request.data.get('net_amount')
-
-#         for room_detail in booking.room_details:
-#             if room_detail['room_number'] == room_number:
-#                 room_detail['check_out'] = check_out
-#                 room_detail['total_amount'] = total_amount
-#                 room_detail['discount'] = discount
-#                 room_detail['net_amount'] = net_amount
-#                 break
-
-#         booking.save()
-#         return Response({"detail": "Check-out successful."}, status=status.HTTP_200_OK)
-
-#     @action(detail=False, methods=['post'], url_path='add-service')
-#     def add_service(self, request):
-#         serializer = AddServiceToRoomSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-#         booking = serializer.save()
-#         return Response(BookingSerializer(booking).data, status=status.HTTP_200_OK)
-
-
-
-# class UpdateRoomCheckInView(APIView):
-#     def patch(self, request, booking_id, room_id):
-#         serializer = RoomDetailUpdateSerializer(data=request.data)
-#         if serializer.is_valid():
-#             room_number = serializer.validated_data['room_number']
-#             check_in = serializer.validated_data.get('check_in')
-#             check_out = serializer.validated_data.get('check_out')
-
-#             try:
-#                 booking = Booking.objects.get(id=booking_id)
-#             except Booking.DoesNotExist:
-#                 return Response({"detail": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#             room_found = False
-#             for room_detail in booking.room_details:
-#                 if room_detail['room_number'] == room_number:
-#                     if check_in:
-#                         room_detail['check_in'] = check_in.isoformat()
-#                     if check_out:
-#                         room_detail['check_out'] = check_out.isoformat()
-#                         # Reset room status and remove booking period
-#                         try:
-#                             room = Room.objects.get(id=room_id)
-#                             room.status = 'available'
-#                             room.booked_periods = [period for period in room.booked_periods if period['booking_id'] != booking_id]
-#                             room.save()
-#                         except Room.DoesNotExist:
-#                             return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
-#                     room_found = True
-#                     break
-
-#             if not room_found:
-#                 return Response({"detail": "Room not found in booking."}, status=status.HTTP_404_NOT_FOUND)
-
-#             booking.save()
-#             return Response({"detail": "Room details updated successfully."}, status=status.HTTP_200_OK)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-# class UpdateRoomCheckOutView(APIView):
-#     def patch(self, request, booking_id, room_id):
-#         serializer = RoomCheckOutSerializer(data=request.data)
-#         if serializer.is_valid():
-#             room_number = serializer.validated_data['room_number']
-#             check_out = serializer.validated_data['check_out']
-
-#             try:
-#                 booking = Booking.objects.get(id=booking_id)
-#             except Booking.DoesNotExist:
-#                 return Response({"detail": "Booking not found."}, status=status.HTTP_404_NOT_FOUND)
-
-#             room_found = False
-#             for room_detail in booking.room_details:
-#                 if room_detail['room_number'] == room_number:
-#                     room_detail['check_out'] = check_out.isoformat()
-#                     # Reset room status and remove booking period
-#                     try:
-#                         room = Room.objects.get(id=room_id)
-#                         room.status = 'available'
-#                         room.booked_periods = [period for period in room.booked_periods if period['booking_id'] != booking_id]
-#                         room.save()
-#                     except Room.DoesNotExist:
-#                         return Response({"detail": "Room not found."}, status=status.HTTP_404_NOT_FOUND)
-#                     room_found = True
-#                     break
-
-#             if not room_found:
-#                 return Response({"detail": "Room not found in booking."}, status=status.HTTP_404_NOT_FOUND)
-
-#             booking.save()
-#             return Response({"detail": "Check-out time updated successfully."}, status=status.HTTP_200_OK)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def destroy(self, request, pk=None):
+        queryset = Service.objects.all()
+        service = get_object_or_404(queryset, pk=pk)
+        service.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
