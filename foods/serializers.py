@@ -36,7 +36,7 @@ class CategorySerializer(serializers.ModelSerializer):
         extra_kwargs = {'tenant': {'required': False}}  # Make tenant not required
 
 class FoodItemSerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
+    # image = serializers.SerializerMethodField()
     category_id = serializers.PrimaryKeyRelatedField(
         source='category',  # Use the 'category' field for the relationship
         queryset=Category.objects.all()
