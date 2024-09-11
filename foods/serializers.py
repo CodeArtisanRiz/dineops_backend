@@ -1,6 +1,12 @@
 from rest_framework import serializers
 from .models import Category, FoodItem
 import json
+from .models import Table
+
+class TableSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Table
+        fields = ['id', 'table_number', 'occupied', 'tenant']
 
 # Nested Nested CategorySerializer in FoodItem
 

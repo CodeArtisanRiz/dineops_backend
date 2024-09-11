@@ -32,13 +32,7 @@ class Tenant(models.Model):
     def __str__(self):
         return self.tenant_name
 
-class Table(models.Model):
-    tenant = models.ForeignKey(Tenant, related_name='tables', on_delete=models.CASCADE)
-    table_number = models.PositiveIntegerField(default=0)
-    occupied = models.BooleanField(default=False)
 
-    def __str__(self):
-        return f"Table {self.table_number} - {'Occupied' if self.occupied else 'Free'}"
 
 class User(AbstractUser):
     ROLE_CHOICES = [

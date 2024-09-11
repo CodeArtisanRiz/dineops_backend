@@ -1,14 +1,14 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Tenant, Table
+from .models import Tenant
+from foods.models import Table
+from foods.serializers import TableSerializer
+
 
 
 UserModel = get_user_model()
 
-class TableSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Table
-        fields = ['id', 'table_number', 'occupied', 'tenant']
+
 
 class TenantSerializer(serializers.ModelSerializer):
     tables = TableSerializer(many=True, read_only=True)

@@ -4,7 +4,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from accounts.models import Table, User
+from accounts.models import User
+from foods.models import Table
 from django.contrib.auth import get_user_model
 from .models import Order
 from .serializers import OrderSerializer

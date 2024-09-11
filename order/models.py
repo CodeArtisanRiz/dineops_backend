@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth import get_user_model
-from accounts.models import Tenant, Table
-from foods.models import FoodItem
+from accounts.models import Tenant
+from foods.models import FoodItem, Table
 
 User = get_user_model()
 

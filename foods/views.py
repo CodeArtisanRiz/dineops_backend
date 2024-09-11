@@ -8,6 +8,9 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 import logging
 import json  # Import json module
+from foods.models import Table
+from foods.serializers import TableSerializer
+
 
 from .models import FoodItem, Category, Tenant
 from .serializers import FoodItemSerializer, CategorySerializer
@@ -217,3 +220,47 @@ class FoodItemViewSet(viewsets.ViewSet):
         food_item = get_object_or_404(queryset, pk=pk)
         food_item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+class TableViewSet(viewsets.ModelViewSet):
+    queryset = Table.objects.all()
+    serializer_class = TableSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Table.objects.all()
+        return Table.objects.filter(tenant=user.tenant)
+
+    def perform_create(self, serializer):
+        if serializer.is_valid():
+            # Get the tenant from the validated data
+            tenant = serializer.validated_data.get('tenant')
+            if not tenant:
+                # Raise PermissionDenied if no tenant is assigned
+                raise PermissionDenied("Table must be assigned to a tenant.")
+
+            # Calculate the new table number
+            table_number = tenant.tables.count() + 1  # Set the table number correctly
+            # Save the serializer with the new table number
+            serializer.save(table_number=table_number)
+
+            # Increment the total tables count for the tenant
+            tenant.total_tables += 1
+            # Save the updated tenant
+            tenant.save()
+        else:
+            raise ValidationError(serializer.errors)
+
+        # serializer.save()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        # No additional action required on tenant
+
+    def perform_destroy(self, instance):
+        tenant = instance.tenant
+        instance.delete()
+
+        tenant.total_tables -= 1
+        tenant.save()

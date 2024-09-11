@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
-from .models import Tenant, Table
+from .models import Tenant
 from .serializers import UserSerializer, TenantSerializer, TableSerializer
 from .permissions import IsSuperuser
 import requests
@@ -168,46 +168,3 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
 
-class TableViewSet(viewsets.ModelViewSet):
-    queryset = Table.objects.all()
-    serializer_class = TableSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Table.objects.all()
-        return Table.objects.filter(tenant=user.tenant)
-
-    def perform_create(self, serializer):
-        if serializer.is_valid():
-            # Get the tenant from the validated data
-            tenant = serializer.validated_data.get('tenant')
-            if not tenant:
-                # Raise PermissionDenied if no tenant is assigned
-                raise PermissionDenied("Table must be assigned to a tenant.")
-
-            # Calculate the new table number
-            table_number = tenant.tables.count() + 1  # Set the table number correctly
-            # Save the serializer with the new table number
-            serializer.save(table_number=table_number)
-
-            # Increment the total tables count for the tenant
-            tenant.total_tables += 1
-            # Save the updated tenant
-            tenant.save()
-        else:
-            raise ValidationError(serializer.errors)
-
-        # serializer.save()
-
-    def perform_update(self, serializer):
-        super().perform_update(serializer)
-        # No additional action required on tenant
-
-    def perform_destroy(self, instance):
-        tenant = instance.tenant
-        instance.delete()
-
-        tenant.total_tables -= 1
-        tenant.save()
