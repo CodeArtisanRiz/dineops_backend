@@ -208,7 +208,7 @@ class FoodItemViewSet(viewsets.ViewSet):
             modified_by_list = food_item.modified_by
             modified_by_list.append(user.username)
             serializer.save(modified_by=modified_by_list)
-            return Response(serializer.data)
+            return Response(serializer.data,  status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):

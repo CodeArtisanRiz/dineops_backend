@@ -27,8 +27,8 @@ class Tenant(models.Model):
     # Preferences and settings
     logo = models.JSONField(default=list)  # Changed from URLField to JSONField
     # Other
-    # modified_at = models.JSONField(default=list, blank=True)
-    # modified_by = models.JSONField(default=list, blank=True)
+    modified_at = models.JSONField(default=list, blank=True)
+    modified_by = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.tenant_name

@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from .models import Tenant
 from .serializers import UserSerializer, TenantSerializer, TableSerializer
-from .permissions import IsSuperuser
+from .permissions import IsSuperuser, IsTenantAdmin
 import requests
 import json  # Import json module
 import logging
@@ -28,6 +28,8 @@ class TenantViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
+        elif self.action in ['update', 'partial_update']:
+            permission_classes = [IsSuperuser | IsTenantAdmin]
         else:
             permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
@@ -46,15 +48,7 @@ class TenantViewSet(viewsets.ModelViewSet):
             request.data._mutable = True  # Make request data mutable
             request.data['logo'] = json.dumps(logo_urls)  # Convert list to JSON string
             request.data._mutable = False  # Make request data immutable
-            # logger.debug(f'Image URLs added to request data: {request.data["image"]}')
-
-            
-
-        # Log the request files to verify they are included
-        # logger.debug(f'Request files: {request.FILES}')
-
-        # Handle logo file upload
-        
+            logger.debug(f'Image URLs added to request data: {request.data["logo"]}')
 
         serializer = TenantSerializer(data=request.data)
         if serializer.is_valid():
@@ -64,7 +58,12 @@ class TenantViewSet(viewsets.ModelViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
+        user = self.request.user
         tenant = self.get_object()
+
+        if not user.is_superuser and tenant.id != user.tenant_id:
+            raise PermissionDenied("You do not have permission to perform this action.")
+
         total_tables = request.data.get('total_tables', None)
 
         logo_urls = handle_image_upload(request, tenant.tenant_name, 'logo', 'logo')
@@ -72,9 +71,8 @@ class TenantViewSet(viewsets.ModelViewSet):
             request.data._mutable = True  # Make request data mutable
             request.data['logo'] = json.dumps(logo_urls)  # Convert list to JSON string
             request.data._mutable = False  # Make request data immutable
-            # logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+            logger.debug(f'Image URLs added to request data: {request.data["logo"]}')
         
-
         response = super().update(request, *args, **kwargs)
         if total_tables is not None:
             total_tables = int(total_tables)

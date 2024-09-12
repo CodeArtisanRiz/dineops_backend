@@ -17,10 +17,11 @@ class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
         fields = [
-            'id', 'tenant_name', 'domain_url', 'created_at', 'has_hotel_feature', 'gst', 'total_tables',
+            'id', 'tenant_name', 'domain_url', 'has_hotel_feature', 'gst', 'total_tables',
             'address_line_1', 'address_line_2', 'city', 'state', 'country', 'pin', 'logo',
-            'phone', 'alt_phone', 'email', 'website', 'tables'
+            'phone', 'alt_phone', 'email', 'website', 'tables', 'created_at', 'modified_at', 'modified_by'
         ]
+        read_only_fields = ['created_at', 'modified_at', 'modified_by']  # Ensure these fields are read-only
 
     def create(self, validated_data):
         total_tables = validated_data.pop('total_tables', 0)
