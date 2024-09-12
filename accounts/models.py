@@ -26,6 +26,7 @@ class Tenant(models.Model):
     gst_in = models.CharField(max_length=15, null=True, blank=True)
     # Preferences and settings
     logo_url = models.URLField(null=True, blank=True)
+    logo = models.JSONField(default=list)  # Changed from URLField to JSONField
     # Other
     updated_at = models.DateTimeField(auto_now=True)
 

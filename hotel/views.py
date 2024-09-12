@@ -45,7 +45,7 @@ class RoomViewSet(viewsets.ViewSet):
             tenant_name = tenant.tenant_name
 
         # Handle image file upload
-        image_urls = handle_image_upload(request, tenant_name, 'room')
+        image_urls = handle_image_upload(request, tenant_name, 'room', 'image')
         if image_urls:
             request.data._mutable = True  # Make request data mutable
             request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
@@ -70,7 +70,7 @@ class RoomViewSet(viewsets.ViewSet):
         tenant_name = user.tenant.tenant_name if not user.is_superuser else room.tenant.tenant_name
 
         # Handle image file upload
-        image_urls = handle_image_upload(request, tenant_name, 'room')
+        image_urls = handle_image_upload(request, tenant_name, 'room', 'image')
         if image_urls:
             request.data._mutable = True  # Make request data mutable
             request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string

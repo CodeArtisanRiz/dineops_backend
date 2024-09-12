@@ -21,9 +21,9 @@ def upload_image(image_files, tenant_name, img_type):
             return image_urls
     return None
 
-def handle_image_upload(request, tenant_name, img_type):
+def handle_image_upload(request, tenant_name, img_type, field_name):
     # Helper method to handle image file upload
-    image_files = request.FILES.getlist('image') or request.FILES.getlist('image[]')
+    image_files = request.FILES.getlist(field_name) or request.FILES.getlist(field_name + '[]')
     if image_files:
         image_urls = upload_image(image_files, tenant_name, img_type)
         if image_urls:

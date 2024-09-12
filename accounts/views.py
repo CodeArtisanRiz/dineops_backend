@@ -7,12 +7,12 @@ from .models import Tenant
 from .serializers import UserSerializer, TenantSerializer, TableSerializer
 from .permissions import IsSuperuser
 import requests
-from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
+import json  # Import json module
 import logging
-
+from utils.image_upload import handle_image_upload
 
 logger = logging.getLogger(__name__)
+
 class TenantViewSet(viewsets.ModelViewSet):
     queryset = Tenant.objects.all()
     serializer_class = TenantSerializer
@@ -40,28 +40,45 @@ class TenantViewSet(viewsets.ModelViewSet):
         tenant_name = request.data.get('tenant_name')
         if not tenant_name:
             return Response({'error': 'Tenant name is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        logo_urls = handle_image_upload(request, tenant_name, 'logo', 'logo')
+        if logo_urls:
+            request.data._mutable = True  # Make request data mutable
+            request.data['logo'] = json.dumps(logo_urls)  # Convert list to JSON string
+            request.data._mutable = False  # Make request data immutable
+            # logger.debug(f'Image URLs added to request data: {request.data["image"]}')
 
-        self.handle_image_upload(request, tenant_name)
+            
+
+        # Log the request files to verify they are included
+        # logger.debug(f'Request files: {request.FILES}')
+
+        # Handle logo file upload
+        
 
         serializer = TenantSerializer(data=request.data)
         if serializer.is_valid():
             tenant = serializer.save()
-            # total_tables = request.data.get('total_tables', 0)
             total_tables = int(request.data.get('total_tables', 0))  # Convert to int here
-            # self.create_tables(tenant, total_tables) # Doubled the tables
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
         tenant = self.get_object()
         total_tables = request.data.get('total_tables', None)
+
+        logo_urls = handle_image_upload(request, tenant.tenant_name, 'logo', 'logo')
+        if logo_urls:
+            request.data._mutable = True  # Make request data mutable
+            request.data['logo'] = json.dumps(logo_urls)  # Convert list to JSON string
+            request.data._mutable = False  # Make request data immutable
+            # logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+        
+
         response = super().update(request, *args, **kwargs)
         if total_tables is not None:
             total_tables = int(total_tables)
             current_count = tenant.tables.count()
-            # if total_tables > current_count:
-            #     for i in range(current_count + 1, total_tables + 1):
-            #         Table.objects.create(tenant=tenant, table_number=i)
             if total_tables > current_count:
                 self.create_tables(tenant, total_tables - current_count)
             elif total_tables < current_count:
@@ -69,59 +86,13 @@ class TenantViewSet(viewsets.ModelViewSet):
             tenant.total_tables = total_tables  # Ensure tenant.total_tables is updated
         return response
 
-    # def create_tables(self, tenant, count):
-    #     current_count = tenant.tables.count()
-    #     for i in range(1, count + 1):
-    #         Table.objects.create(tenant=tenant, table_number=current_count + i)
-
-    # def remove_tables(self, tenant, count):
-    #     tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
-    #     for table in tables_to_delete:
-    #         table.delete()
-
-    # Not Required, kept for reference
-    # def create_tables(self, tenant, count):
-    #     table_viewset = TableViewSet()
-    #     table_viewset.request = self.request  # Pass the request object to TableViewSet
-    #     for _ in range(count):
-    #         table_viewset.perform_create(serializer=TableSerializer(data={'tenant': tenant.id}))
-
     def remove_tables(self, tenant, count):
         tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
         for table in tables_to_delete:
             table.delete()
 
-    def handle_image_upload(self, request, tenant_name):
-        image_file = request.FILES.get('logo')
-        if image_file:
-            image_url = self.upload_image(image_file, tenant_name)
-            if image_url:
-                validate = URLValidator()
-                try:
-                    validate(image_url)
-                    request.data._mutable = True
-                    request.data['logo_url'] = image_url
-                    request.data._mutable = False
-                    logger.debug(f'Successfully added image URL to request data: {request.data["logo_url"]}')
-                except ValidationError as e:
-                    logger.error(f'Invalid image URL: {image_url}, Error: {e}')
-                    raise PermissionDenied('Failed to upload image: Invalid URL.')
-            else:
-                raise PermissionDenied('Failed to upload image.')
-
-    def upload_image(self, image_file, tenant_name):
-        files = {'file': (image_file.name, image_file.read(), image_file.content_type)}
-        data = {'tenant': tenant_name}
-        response = requests.post('https://techno3gamma.in/bucket/dineops/handle_tenant_logo.php', files=files, data=data)
-
-        if response.status_code == 200:
-            data = response.json()
-            image_url = data.get('image_url')
-            logger.debug(f'Uploaded image URL: {image_url}')
-            return image_url
-        return None
-
 UserModel = get_user_model()
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = UserModel.objects.all()
     serializer_class = UserSerializer
