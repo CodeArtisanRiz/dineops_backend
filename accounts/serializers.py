@@ -17,9 +17,9 @@ class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
         fields = [
-            'id', 'tenant_name', 'domain_url', 'created_at', 'has_hotel_feature', 'gst_in', 'total_tables',
+            'id', 'tenant_name', 'domain_url', 'created_at', 'has_hotel_feature', 'gst', 'total_tables',
             'address_line_1', 'address_line_2', 'city', 'state', 'country', 'pin', 'logo',
-            'phone', 'alt_phone', 'email', 'website', 'logo_url', 'updated_at', 'tables'
+            'phone', 'alt_phone', 'email', 'website', 'tables'
         ]
 
     def create(self, validated_data):

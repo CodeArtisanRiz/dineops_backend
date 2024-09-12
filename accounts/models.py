@@ -23,12 +23,12 @@ class Tenant(models.Model):
     email = models.EmailField(null=True, blank=True)
     website = models.URLField(null=True, blank=True)
     # Additional business information
-    gst_in = models.CharField(max_length=15, null=True, blank=True)
+    gst = models.CharField(max_length=15, null=True, blank=True)
     # Preferences and settings
-    logo_url = models.URLField(null=True, blank=True)
     logo = models.JSONField(default=list)  # Changed from URLField to JSONField
     # Other
-    updated_at = models.DateTimeField(auto_now=True)
+    # modified_at = models.JSONField(default=list, blank=True)
+    # modified_by = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return self.tenant_name
