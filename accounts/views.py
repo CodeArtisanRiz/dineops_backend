@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
 from .models import Tenant
 from .serializers import UserSerializer, TenantSerializer, TableSerializer
-from .permissions import IsSuperuser, IsTenantAdmin
+from utils.permissions import IsSuperuser, IsTenantAdmin
 import requests
 import json  # Import json module
 import logging
