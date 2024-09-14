@@ -17,9 +17,10 @@ class TenantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tenant
         fields = [
-            'id', 'tenant_name', 'domain_url', 'has_hotel_feature', 'gst', 'total_tables',
+            'id', 'tenant_name', 'has_hotel_feature', 'gst_no', 'total_tables',
             'address_line_1', 'address_line_2', 'city', 'state', 'country', 'pin', 'logo',
-            'phone', 'alt_phone', 'email', 'website', 'tables', 'created_at', 'modified_at', 'modified_by'
+            'phone', 'alt_phone', 'email', 'website', 'tables', 'created_at', 'modified_at', 'modified_by',
+            'food_gst','hotel_gst_lower','hotel_gst_upper','hotel_gst_limit_margin'
         ]
         read_only_fields = ['created_at', 'modified_at', 'modified_by']  # Ensure these fields are read-only
 

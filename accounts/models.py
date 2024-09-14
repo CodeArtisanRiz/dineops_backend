@@ -3,7 +3,6 @@ from django.contrib.auth.models import AbstractUser
 
 class Tenant(models.Model):
     tenant_name = models.CharField(max_length=100)
-    domain_url = models.URLField(unique=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     has_hotel_feature = models.BooleanField(default=False)
 
@@ -23,12 +22,19 @@ class Tenant(models.Model):
     email = models.EmailField(null=True, blank=True)
     website = models.URLField(null=True, blank=True)
     # Additional business information
-    gst = models.CharField(max_length=15, null=True, blank=True)
+    gst_no = models.CharField(max_length=15, null=True, blank=True)
     # Preferences and settings
     logo = models.JSONField(default=list)  # Changed from URLField to JSONField
     # Other
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)
+
+    food_gst = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    hotel_gst_lower = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    hotel_gst_upper = models.DecimalField(max_digits=20, decimal_places=2, default=0)
+    hotel_gst_limit_margin = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+
 
     def __str__(self):
         return self.tenant_name

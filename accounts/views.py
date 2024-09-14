@@ -10,6 +10,7 @@ import requests
 import json  # Import json module
 import logging
 from utils.image_upload import handle_image_upload
+from datetime import timezone, datetime  # Import datetime module
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,11 @@ class TenantViewSet(viewsets.ModelViewSet):
             request.data._mutable = False  # Make request data immutable
             logger.debug(f'Image URLs added to request data: {request.data["logo"]}')
         
+        # Append to modified_at and modified_by fields
+        tenant.modified_at.append(datetime.now(timezone.utc).isoformat())
+        tenant.modified_by.append(f"{user.username}({user.id})")
+        tenant.save()
+
         response = super().update(request, *args, **kwargs)
         if total_tables is not None:
             total_tables = int(total_tables)
