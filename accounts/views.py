@@ -65,6 +65,11 @@ class TenantViewSet(viewsets.ModelViewSet):
         if not user.is_superuser and tenant.id != user.tenant_id:
             raise PermissionDenied("You do not have permission to perform this action.")
 
+        # Check if subscription fields are being updated by a non-superuser
+        if not user.is_superuser:
+            if 'subscription_from' in request.data or 'subscription_to' in request.data:
+                raise PermissionDenied("Only superusers can update subscription fields.")
+
         total_tables = request.data.get('total_tables', None)
 
         logo_urls = handle_image_upload(request, tenant.tenant_name, 'logo', 'logo')

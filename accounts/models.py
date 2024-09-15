@@ -34,7 +34,8 @@ class Tenant(models.Model):
     hotel_gst_upper = models.DecimalField(max_digits=20, decimal_places=2, default=0)
     hotel_gst_limit_margin = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
-
+    subscription_from = models.DateField(null=True, blank=True)  # New field
+    subscription_to = models.DateField(null=True, blank=True)  # New field
 
     def __str__(self):
         return self.tenant_name
