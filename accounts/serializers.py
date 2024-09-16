@@ -13,6 +13,7 @@ UserModel = get_user_model()
 class TenantSerializer(serializers.ModelSerializer):
     tables = TableSerializer(many=True, read_only=True)
     total_tables = serializers.IntegerField(write_only=True, required=False)
+    subscription = serializers.SerializerMethodField()  # New field
 
     class Meta:
         model = Tenant
@@ -21,7 +22,7 @@ class TenantSerializer(serializers.ModelSerializer):
             'address_line_1', 'address_line_2', 'city', 'state', 'country', 'pin', 'logo',
             'phone', 'alt_phone', 'email', 'website', 'tables', 'created_at', 'modified_at', 'modified_by',
             'food_gst','hotel_gst_lower','hotel_gst_upper','hotel_gst_limit_margin',
-            'subscription_from', 'subscription_to'
+            'subscription_from', 'subscription_to', 'subscription'  # Include new field
         ]
         read_only_fields = ['created_at', 'modified_at', 'modified_by']  # Ensure these fields are read-only
 
@@ -41,6 +42,10 @@ class TenantSerializer(serializers.ModelSerializer):
                 for i in range(current_count + 1, total_tables + 1):
                     Table.objects.create(tenant=tenant, table_number=i)
         return tenant
+
+    def get_subscription(self, obj):  # New method to determine subscription status
+        from datetime import date
+        return obj.subscription_from <= date.today() <= obj.subscription_to
 # class TenantSerializer(serializers.ModelSerializer):
 #     class Meta:
 #         model = Tenant
