@@ -255,26 +255,24 @@ class TableViewSet(viewsets.ModelViewSet):
         return Table.objects.filter(tenant=user.tenant)
 
     def perform_create(self, serializer):
-        if serializer.is_valid():
-            # Get the tenant from the validated data
-            tenant = serializer.validated_data.get('tenant')
-            if not tenant:
-                # Raise PermissionDenied if no tenant is assigned
-                raise PermissionDenied("Table must be assigned to a tenant.")
-
-            # Calculate the new table number
-            table_number = tenant.tables.count() + 1  # Set the table number correctly
-            # Save the serializer with the new table number
-            serializer.save(table_number=table_number)
-
-            # Increment the total tables count for the tenant
-            tenant.total_tables += 1
-            # Save the updated tenant
-            tenant.save()
+        user = self.request.user  # Get the current user
+        if user.is_superuser:
+            tenant_id = serializer.validated_data.get('tenant')  # Get tenant ID from validated data
+            if not tenant_id:
+                raise PermissionDenied("Superuser must include tenant ID in request.")
+            tenant = get_object_or_404(Tenant, id=tenant_id)  # Get tenant by ID
         else:
-            raise ValidationError(serializer.errors)
+            tenant = user.tenant  # Set tenant to user's tenant if not a superuser
 
-        # serializer.save()
+        # Calculate the new table number
+        table_number = tenant.tables.count() + 1  # Set the table number correctly
+        # Save the serializer with the new table number
+        serializer.save(tenant=tenant, table_number=table_number)
+
+        # Increment the total tables count for the tenant
+        tenant.total_tables += 1
+        # Save the updated tenant
+        tenant.save()
 
     def perform_update(self, serializer):
         super().perform_update(serializer)

@@ -6,7 +6,19 @@ from .models import Table
 class TableSerializer(serializers.ModelSerializer):
     class Meta:
         model = Table
-        fields = ['id', 'table_number', 'occupied', 'tenant']
+        fields = ['id', 'table_number', 'occupied']
+        read_only_fields = ['tenant']  # Added 'tenant' to read_only_fields
+    
+    def create(self, validated_data):
+        user = self.context['request'].user  # Get the current user from the request context
+        if not user.is_superuser:
+            validated_data['tenant'] = user.tenant  # Set tenant to user's tenant if not superuser
+        else:
+            # Ensure tenant is taken from the payload if provided
+            tenant = validated_data.get('tenant')
+            if tenant is None:
+                raise serializers.ValidationError("Superuser must provide a tenant.")
+        return super().create(validated_data)  # Call the parent create method
 
 # Nested Nested CategorySerializer in FoodItem
 
