@@ -46,7 +46,7 @@ class TenantSerializer(serializers.ModelSerializer):
     def get_subscription(self, obj):  # New method to determine subscription status
         from datetime import date
         if obj.subscription_from is None or obj.subscription_to is None:
-            return None
+            return None # Return null directly
         return obj.subscription_from <= date.today() <= obj.subscription_to
 # class TenantSerializer(serializers.ModelSerializer):
 #     class Meta:

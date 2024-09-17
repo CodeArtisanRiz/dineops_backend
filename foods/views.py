@@ -190,25 +190,25 @@ class FoodItemViewSet(viewsets.ViewSet):
         # Handle image file upload
         image_urls = handle_image_upload(request, tenant_name, 'food_item', 'image')
         if image_urls:
-            request.data._mutable = True  # Make request data mutable
-            request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
-            request.data._mutable = False  # Make request data immutable
-            logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+            # Convert request.data to a mutable dictionary
+            data = request.data.copy()  # Create a mutable copy
+            data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+            logger.debug(f'Image URLs added to request data: {data["image"]}')
+        else:
+            data = request.data  # Use original data if no images
 
         # Handle category update
-        category_id = request.data.get('category_id')
+        category_id = data.get('category')  # Change from 'category_name' to 'category'
         if category_id:
             category = get_object_or_404(Category, id=category_id, tenant=user.tenant)
-            request.data._mutable = True  # Make request data mutable
-            request.data['category'] = category.id
-            request.data._mutable = False  # Make request data immutable
+            data['category'] = category.id  # Ensure category ID is set
 
-        serializer = FoodItemSerializer(food_item, data=request.data, partial=True)
+        serializer = FoodItemSerializer(food_item, data=data, partial=True)
         if serializer.is_valid():
             modified_by_list = food_item.modified_by
             modified_by_list.append(user.username)
             serializer.save(modified_by=modified_by_list)
-            return Response(serializer.data,  status=status.HTTP_201_CREATED)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):

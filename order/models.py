@@ -8,12 +8,14 @@ User = get_user_model()
 class Order(models.Model):
     STATUS_CHOICES = [
         ('in_progress', 'In Progress'),
+        ('on_hold', 'On Hold'),
+        ('kot', 'Kot'),
         ('served', 'Served'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
-        ('on_hold', 'On Hold')
-        # ,
-        # ('settled', 'Settled'),
+        ('billed', "Billed"),
+        # ('completed', 'Completed'),
+        ('settled', "Setted"),
+        ('cancelled', 'Cancelled')
+
     ]
     ORDER_CHOICES = [
         ('take_away', 'Take Away'),
