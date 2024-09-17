@@ -51,5 +51,8 @@ class Order(models.Model):
 
     kot_count = models.IntegerField(null=True, blank=True)
 
+    modified_at = models.JSONField(default=list, blank=True)
+    modified_by = models.JSONField(default=list, blank=True)
+
     def __str__(self):
         return f"Order {self.id} by {self.customer.username if self.customer else 'unknown'}"

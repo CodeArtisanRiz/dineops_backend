@@ -1,27 +1,25 @@
 from rest_framework import serializers
 from .models import Order, FoodItem
 
-# class OrderSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Order
-#         fields = '__all__'
-
 class OrderSerializer(serializers.ModelSerializer):
     food_items = serializers.PrimaryKeyRelatedField(many=True, queryset=FoodItem.objects.all())
     quantity = serializers.ListField(
         child=serializers.IntegerField(min_value=1), 
-        write_only=True, 
         required=True
     )
+    phone = serializers.SerializerMethodField()
+    table_number = serializers.SerializerMethodField()
 
     class Meta:
         model = Order
-        # fields = [
-        #     'tenant', 'customer', 'order_type', 'table', 'payment_method',
-        #     'total_price', 'discount', 'coupon_used', 'notes', 'food_items', 
-        #     'quantity', 'status'
-        # ]
         fields = '__all__'
+        read_only_fields = ['modified_at', 'modified_by']  # Make these fields read-only
+
+    def get_phone(self, obj):
+        return obj.customer.phone
+
+    def get_table_number(self, obj):
+        return obj.table.id if obj.table else None
 
     def validate(self, data):
         if len(data['food_items']) != len(data['quantity']):
@@ -34,7 +32,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
         order = Order.objects.create(**validated_data)
         order.food_items.set(food_items)
-        order.quantity = quantity
+        order.quantity = quantity  # Ensure quantity is set
         order.save()
 
         return order
@@ -46,7 +44,7 @@ class OrderSerializer(serializers.ModelSerializer):
         if food_items is not None:
             instance.food_items.set(food_items)
         if quantity is not None:
-            instance.quantity = quantity
+            instance.quantity = quantity  # Ensure quantity is updated
 
         instance.status = validated_data.get('status', instance.status)
         instance.discount = validated_data.get('discount', instance.discount)
