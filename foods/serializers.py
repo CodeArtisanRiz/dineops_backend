@@ -42,16 +42,14 @@ class CategorySerializer(serializers.ModelSerializer):
         extra_kwargs = {'tenant': {'required': False}}  # Make tenant not required
 
 class FoodItemSerializer(serializers.ModelSerializer):
-    # image = serializers.SerializerMethodField()
-    category_id = serializers.PrimaryKeyRelatedField(
-        source='category',  # Use the 'category' field for the relationship
-        queryset=Category.objects.all()
+    category = serializers.PrimaryKeyRelatedField(  # Removed source argument
+        queryset=Category.objects.all()  # Keep this as the primary key related field
     )
     category_name = serializers.SerializerMethodField() # Custom field to return the category name
 
     class Meta:
         model = FoodItem
-        fields = ['id', 'tenant', 'name', 'description', 'price', 'image', 'veg', 'category_id',
+        fields = ['id', 'tenant', 'name', 'description', 'price', 'image', 'veg', 'category',
                   'category_name', #returned category name
                   'status', 'created_at', 'modified_at', 'created_by', 'modified_by']
         read_only_fields = ['created_at', 'modified_at', 'created_by', 'modified_by']  # Ensure these fields are read-only

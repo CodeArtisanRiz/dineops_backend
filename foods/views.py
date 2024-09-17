@@ -42,6 +42,7 @@ class CategoryViewSet(viewsets.ViewSet):
         user = self.request.user
         if user.is_superuser:
             tenant_id = request.data.get('tenant')
+            category_id = request.data.get('category')  # Change from 'category_id' to 'category'
             if not tenant_id:
                 raise PermissionDenied("Superuser must include tenant ID in request.")
             tenant = get_object_or_404(Tenant, id=tenant_id)
@@ -104,6 +105,10 @@ class CategoryViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, pk=None):
+        user = self.request.user
+        if not user.is_superuser and user.role not in ['admin', 'manager']:
+            raise PermissionDenied("You do not have permission to perform this action.")
+
         queryset = self.get_queryset()
         category = get_object_or_404(queryset, pk=pk)
         serializer = CategorySerializer(category, data=request.data, partial=True)  # Allow partial updates
@@ -120,7 +125,9 @@ class CategoryViewSet(viewsets.ViewSet):
         queryset = self.get_queryset()
         category = get_object_or_404(queryset, pk=pk)
         category.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        # return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({f'message : Category {category} deleted.'}, status=status.HTTP_204_NO_CONTENT)
+
 
 class FoodItemViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -146,7 +153,7 @@ class FoodItemViewSet(viewsets.ViewSet):
         user = self.request.user
         if user.is_superuser:
             tenant_id = request.data.get('tenant')
-            category_id = request.data.get('category')
+            category_id = request.data.get('category')  # Change from 'category_id' to 'category'
             if not tenant_id:
                 raise PermissionDenied("Superuser must include tenant ID in request.")
             tenant = get_object_or_404(Tenant, id=tenant_id)
@@ -168,7 +175,7 @@ class FoodItemViewSet(viewsets.ViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         elif user.role in ['admin', 'manager']:
             tenant_name = user.tenant.tenant_name
-            category_id = request.data.get('category_id')
+            category_id = request.data.get('category')  # Change from 'category_id' to 'category'
             category = get_object_or_404(Category, id=category_id, tenant=user.tenant)
             
             # Handle image file upload
