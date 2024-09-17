@@ -30,7 +30,8 @@ class FoodItem(models.Model):
     description = models.TextField(null=True, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     image = models.JSONField(default=list)  # Store list of URLs instead of a single URL
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='food_items')
+    # category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True, related_name='food_items')
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True, related_name='food_items')
     veg = models.BooleanField(default=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='enabled')
     created_at = models.DateTimeField(auto_now_add=True)

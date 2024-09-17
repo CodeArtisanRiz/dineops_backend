@@ -286,3 +286,8 @@ class TableViewSet(viewsets.ModelViewSet):
 
         tenant.total_tables -= 1
         tenant.save()
+        
+        # Return a response message for deletion with status 200
+        # Return a response indicating the ID of the deleted food item
+        return Response({f'message : Table {Table} deleted.'}, status=status.HTTP_204_NO_CONTENT)
+
