@@ -211,6 +211,9 @@ class FoodItemViewSet(viewsets.ViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def partial_update(self, request, pk=None):
+        return self.update(request, pk)  # Reuse the update logic
+
     def destroy(self, request, pk=None):
         user = self.request.user
         if not user.is_superuser and user.role != 'manager':
