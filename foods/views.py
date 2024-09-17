@@ -103,6 +103,15 @@ class CategoryViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def partial_update(self, request, pk=None):
+        queryset = self.get_queryset()
+        category = get_object_or_404(queryset, pk=pk)
+        serializer = CategorySerializer(category, data=request.data, partial=True)  # Allow partial updates
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     def destroy(self, request, pk=None):
         user = self.request.user
         if not user.is_superuser and user.role != 'manager':
@@ -216,14 +225,17 @@ class FoodItemViewSet(viewsets.ViewSet):
 
     def destroy(self, request, pk=None):
         user = self.request.user
-        if not user.is_superuser and user.role != 'manager':
+        if not user.is_superuser and user.role not in ['admin', 'manager']:
             raise PermissionDenied("You do not have permission to perform this action.")
 
         queryset = self.get_queryset()
         food_item = get_object_or_404(queryset, pk=pk)
-        food_item.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
+        food_item_id = food_item.id  # Store the ID of the food item to be deleted
+        food_item.delete()  # Delete the food item
+
+        # Return a response indicating the ID of the deleted food item
+        return Response({f'message : Food item {food_item_id} deleted.'}, status=status.HTTP_204_NO_CONTENT)
+
 class TableViewSet(viewsets.ModelViewSet):
     queryset = Table.objects.all()
     serializer_class = TableSerializer
