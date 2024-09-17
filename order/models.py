@@ -40,7 +40,7 @@ class Order(models.Model):
     # room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    # updated_at = models.DateTimeField(auto_now=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
     food_items = models.ManyToManyField(FoodItem)
     quantity = models.JSONField(default=list, blank=True)
@@ -48,6 +48,8 @@ class Order(models.Model):
     discount = models.DecimalField(null=True, blank=True, max_digits=10, decimal_places=2)  # Added discount field
     coupon_used = models.JSONField(default=list, blank=True)  # Added coupon used[] field
     notes = models.TextField(null=True, blank=True)
+
+    kot_count = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
         return f"Order {self.id} by {self.customer.username if self.customer else 'unknown'}"

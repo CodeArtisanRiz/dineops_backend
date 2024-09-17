@@ -10,6 +10,7 @@ from django.contrib.auth import get_user_model
 from .models import Order
 from .serializers import OrderSerializer
 import logging
+from utils.get_or_create_user import get_or_create_user
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -31,37 +32,28 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         phone = data.get('phone')
         email = data.get('email')
+        first_name = data.get('first_name', '')
+        last_name = data.get('last_name', '')
+        address_line_1 = data.get('address_line_1', '')
+        address_line_2 = data.get('address_line_2', '')
+        dob = data.get('dob', None)
+        address = f"{address_line_1} {address_line_2}".strip()
 
         try:
             with transaction.atomic():
-                # Check if user exists
-                customer = None
-                if phone:
-                    customer = User.objects.filter(phone=phone).first()
-                elif email:
-                    customer = User.objects.filter(email=email).first()
-
-                if customer:
-                    # Update customer details if they are not empty
-                    first_name = data.get('first_name')
-                    last_name = data.get('last_name')
-
-                    if first_name:
-                        customer.first_name = first_name
-                    if last_name:
-                        customer.last_name = last_name
-                    customer.save()
-                else:
-                    # Create new customer
-                    customer = User.objects.create_user(
-                        username=email or phone,
-                        email=email,
-                        phone=phone,
-                        first_name=data.get('first_name', ''),
-                        last_name=data.get('last_name', ''),
-                        password='customer',
-                        role='customer'
-                    )
+                # Use get_or_create_user to get or create the customer
+                customer_id = get_or_create_user(
+                    username=email or phone,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role='customer',
+                    phone=phone,
+                    address=address,
+                    password='customer',
+                    tenant=tenant
+                )
+                customer = User.objects.get(id=customer_id)
 
                 order_type = data.get('order_type')
 
