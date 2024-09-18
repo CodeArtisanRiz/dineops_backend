@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from accounts.models import Tenant
 from foods.models import FoodItem, Table
+from hotel.models import Room
 
 User = get_user_model()
 
@@ -53,6 +54,7 @@ class Order(models.Model):
 
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)
+    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
 
     def __str__(self):
         return f"Order {self.id} by {self.customer.username if self.customer else 'unknown'}"
