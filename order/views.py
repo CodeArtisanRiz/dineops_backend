@@ -93,6 +93,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     quantity=data.get('quantity', [])  # Ensure quantity is set
                 )
                 order.food_items.set(data.get('food_items'))
+                order.kot_count = data.get('kot_count', 0)  # Ensure kot_count is set
 
                 serializer = OrderSerializer(order)
                 logger.info(f"Order {order.id} created by {user.username}")
@@ -125,6 +126,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.total_price = data.get('total_price', order.total_price)
                 order.notes = data.get('notes', order.notes)
                 order.quantity = data.get('quantity', order.quantity)  # Ensure quantity is updated
+                order.kot_count = data.get('kot_count', order.kot_count)  # Ensure kot_count is updated
                 
                 # Update modified_at and modified_by
                 order.modified_at.append(str(timezone.now()))
@@ -172,6 +174,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.notes = data['notes']
                 if 'quantity' in data:
                     order.quantity = data['quantity']  # Ensure quantity is updated
+                if 'kot_count' in data:
+                    order.kot_count = data['kot_count']  # Ensure kot_count is updated
                 
                 # Update modified_at and modified_by
                 order.modified_at.append(str(timezone.now()))

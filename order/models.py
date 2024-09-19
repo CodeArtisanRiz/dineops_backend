@@ -50,7 +50,7 @@ class Order(models.Model):
     coupon_used = models.JSONField(default=list, blank=True)  # Added coupon used[] field
     notes = models.TextField(null=True, blank=True)
 
-    kot_count = models.IntegerField(null=True, blank=True)
+    kot_count = models.IntegerField(default=0)
 
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)

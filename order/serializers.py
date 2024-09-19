@@ -33,6 +33,7 @@ class OrderSerializer(serializers.ModelSerializer):
         order = Order.objects.create(**validated_data)
         order.food_items.set(food_items)
         order.quantity = quantity  # Ensure quantity is set
+        order.kot_count = validated_data.get('kot_count', 0)  # Ensure kot_count is set
         order.save()
 
         return order
@@ -51,6 +52,7 @@ class OrderSerializer(serializers.ModelSerializer):
         instance.coupon_used = validated_data.get('coupon_used', instance.coupon_used)
         instance.total_price = validated_data.get('total_price', instance.total_price)
         instance.notes = validated_data.get('notes', instance.notes)
+        instance.kot_count = validated_data.get('kot_count', instance.kot_count)  # Ensure kot_count is updated
         instance.save()
 
         return instance
