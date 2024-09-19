@@ -1,12 +1,21 @@
 from rest_framework import serializers
-from .models import Category, FoodItem
+from django.db import models  # Import models from Django
+from .models import Category, FoodItem, Table, Tenant
 import json
-from .models import Table
+
+
+class TenantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tenant
+        fields = ['id', 'tenant_name']  # Include necessary fields
+
 
 class TableSerializer(serializers.ModelSerializer):
+    tenant = serializers.PrimaryKeyRelatedField(read_only=True)  # Use PrimaryKeyRelatedField for tenant
+
     class Meta:
         model = Table
-        fields = ['id', 'table_number', 'occupied']
+        fields = ['id', 'table_number', 'occupied', 'tenant']  # Add 'tenant' to fields
         read_only_fields = ['tenant']  # Added 'tenant' to read_only_fields
     
     def create(self, validated_data):
@@ -14,10 +23,23 @@ class TableSerializer(serializers.ModelSerializer):
         if not user.is_superuser:
             validated_data['tenant'] = user.tenant  # Set tenant to user's tenant if not superuser
         else:
-            # Ensure tenant is taken from the payload if provided
             tenant = validated_data.get('tenant')
             if tenant is None:
-                raise serializers.ValidationError("Superuser must provide a tenant.")
+                raise serializers.ValidationError({"detail": "Superuser must provide a tenant."})
+        
+        tenant = validated_data['tenant']
+        
+        # Check if table_number is provided in the payload
+        if 'table_number' not in validated_data:
+            # Calculate the next available table number for the current tenant
+            max_table_number = Table.objects.filter(tenant=tenant).aggregate(models.Max('table_number'))['table_number__max']
+            validated_data['table_number'] = (max_table_number or 0) + 1
+        else:
+            # Ensure the provided table_number is unique within the tenant
+            table_number = validated_data['table_number']
+            if Table.objects.filter(tenant=tenant, table_number=table_number).exists():
+                raise serializers.ValidationError({"detail": f"Table number {table_number} already exists for this tenant."})
+        
         return super().create(validated_data)  # Call the parent create method
 
 # Nested Nested CategorySerializer in FoodItem

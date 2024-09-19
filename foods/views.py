@@ -264,10 +264,8 @@ class TableViewSet(viewsets.ModelViewSet):
         else:
             tenant = user.tenant  # Set tenant to user's tenant if not a superuser
 
-        # Calculate the new table number
-        table_number = tenant.tables.count() + 1  # Set the table number correctly
-        # Save the serializer with the new table number
-        serializer.save(tenant=tenant, table_number=table_number)
+        # Save the serializer with the tenant
+        serializer.save(tenant=tenant)
 
         # Increment the total tables count for the tenant
         tenant.total_tables += 1
