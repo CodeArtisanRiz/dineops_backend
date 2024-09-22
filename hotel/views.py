@@ -207,9 +207,9 @@ class BookingViewSet(viewsets.ViewSet):
         )
 
         # Handle ID card image upload
-        id_card_urls = handle_image_upload(request, tenant.tenant_name, 'id_card', 'id_image')
+        id_card_urls = handle_image_upload(request, tenant.tenant_name, 'hotel/id_card', 'id_card')
         if id_card_urls:
-            data['id_card'] = json.dumps(id_card_urls)  # Convert list to JSON string
+            data['id_card'] = id_card_urls  # Store as list of URLs
         else:
             data['id_card'] = None
 
@@ -289,7 +289,70 @@ class BookingViewSet(viewsets.ViewSet):
         old_status = booking.status
         new_status = request.data.get('status', old_status)
 
-        serializer = BookingSerializer(booking, data=request.data, partial=True)
+        data = request.data.dict()  # Convert QueryDict to a regular dict
+
+        # Handle ID card image upload
+        tenant = booking.tenant
+        id_card_urls = handle_image_upload(request, tenant.tenant_name, 'hotel/id_card', 'id_card')
+        if id_card_urls:
+            data['id_card'] = id_card_urls  # Store as list of URLs
+        else:
+            data['id_card'] = booking.id_card  # Keep existing value if no new files are uploaded
+
+        serializer = BookingSerializer(booking, data=data, partial=True)
+        if serializer.is_valid():
+            booking = serializer.save()
+
+            # Handle status change to Cancelled
+            if old_status != 3 and new_status == 3:
+                RoomBooking.objects.filter(booking=booking).update(is_active=False)
+
+            # Handle status change from Cancelled to Confirmed
+            if old_status == 3 and new_status == 2:
+                rooms_data = RoomBooking.objects.filter(booking=booking)
+                for room_booking in rooms_data:
+                    room_id = room_booking.room_id
+                    start_date = room_booking.start_date
+                    end_date = room_booking.end_date
+
+                    overlapping_bookings = RoomBooking.objects.filter(
+                        room_id=room_id,
+                        start_date__lt=end_date,
+                        end_date__gt=start_date,
+                        status__in=[1, 2, 3],  # Pending, Confirmed, Checked-in
+                        is_active=True
+                    ).exclude(booking=booking)
+
+                    if overlapping_bookings.exists():
+                        return Response(
+                            {"error": f"Room {room_id} is not available from {start_date} to {end_date}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    room_booking.is_active = True
+                    room_booking.status = 2  # Set status to 'Confirmed'
+                    room_booking.save()
+
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def partial_update(self, request, pk=None):
+        queryset = Booking.objects.all()
+        booking = get_object_or_404(queryset, pk=pk)
+        old_status = booking.status
+        new_status = request.data.get('status', old_status)
+
+        data = request.data.dict()  # Convert QueryDict to a regular dict
+
+        # Handle ID card image upload
+        tenant = booking.tenant
+        id_card_urls = handle_image_upload(request, tenant.tenant_name, 'hotel/id_card', 'id_card')
+        if id_card_urls:
+            data['id_card'] = id_card_urls  # Store as list of URLs
+        else:
+            data['id_card'] = booking.id_card  # Keep existing value if no new files are uploaded
+
+        serializer = BookingSerializer(booking, data=data, partial=True)
         if serializer.is_valid():
             booking = serializer.save()
 

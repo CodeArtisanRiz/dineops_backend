@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment
 import logging
 from datetime import date  # Add this import
+from accounts.models import User  # Import User model
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +35,21 @@ class ServiceSerializer(serializers.ModelSerializer):
         model = Service
         fields = ['id', 'name', 'category', 'description', 'price']
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'address']  # Include all necessary fields
+        
 class BookingSerializer(serializers.ModelSerializer):
     rooms = RoomBookingSerializer(source='roombooking_set', many=True, read_only=True)
+    guests = UserSerializer(many=True, read_only=True)  # Use UserSerializer for guests
 
     class Meta:
         model = Booking
-        fields = ['id', 'booking_date', 'status', 'total_amount', 'tenant', 'guests', 'rooms', 'id_card']  # Added id_card
+        fields = ['id', 'booking_date', 'status', 'total_amount', 'tenant', 'guests', 'rooms', 'id_card']
+        extra_kwargs = {
+            'id_card': {'required': False, 'allow_null': True}  # Allow null values
+        }
 
 class CheckInSerializer(serializers.ModelSerializer):
     class Meta:
@@ -65,3 +75,4 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = ['id', 'billing', 'payment_date', 'amount', 'payment_method', 'status']
+
