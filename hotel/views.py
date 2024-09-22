@@ -3,6 +3,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.parsers import MultiPartParser, FormParser  # Add these imports
 from django.shortcuts import get_object_or_404
 import json  # Import json module
 
@@ -176,21 +177,11 @@ class ServiceViewSet(viewsets.ViewSet):
 
 class BookingViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
-
-    def list(self, request):
-        queryset = Booking.objects.all()
-        serializer = BookingSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        queryset = Booking.objects.all()
-        booking = get_object_or_404(queryset, pk=pk)
-        serializer = BookingSerializer(booking)
-        return Response(serializer.data)
+    parser_classes = [MultiPartParser, FormParser]  # Ensure parser classes are included
 
     def create(self, request):
         user = request.user
-        data = request.data
+        data = request.data.dict()  # Convert QueryDict to a regular dict
         tenant = user.tenant
 
         # Handle guest details
@@ -216,7 +207,7 @@ class BookingViewSet(viewsets.ViewSet):
         )
 
         # Handle ID card image upload
-        id_card_urls = handle_image_upload(request, tenant.tenant_name, 'id_card', 'id_card')
+        id_card_urls = handle_image_upload(request, tenant.tenant_name, 'id_card', 'id_image')
         if id_card_urls:
             data['id_card'] = json.dumps(id_card_urls)  # Convert list to JSON string
         else:
@@ -229,7 +220,7 @@ class BookingViewSet(viewsets.ViewSet):
         data['advance_paid'] = data.get('advance_paid', 0.0)
 
         # Check room availability
-        rooms_data = data.get('rooms', [])
+        rooms_data = json.loads(data.get('rooms', '[]'))  # Parse rooms data from JSON string
         unavailable_rooms = []
         for room_data in rooms_data:
             room_id = room_data.get('room')
@@ -280,6 +271,17 @@ class BookingViewSet(viewsets.ViewSet):
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def list(self, request):
+        queryset = Booking.objects.all()
+        serializer = BookingSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        queryset = Booking.objects.all()
+        booking = get_object_or_404(queryset, pk=pk)
+        serializer = BookingSerializer(booking)
+        return Response(serializer.data)
 
     def update(self, request, pk=None):
         queryset = Booking.objects.all()
