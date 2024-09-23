@@ -114,6 +114,29 @@ class OrderViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 order = get_object_or_404(self.get_queryset(), pk=pk)
 
+                # Update user details if provided
+                phone = data.get('phone', order.customer.phone)
+                email = data.get('email', order.customer.email)
+                first_name = data.get('first_name', order.customer.first_name)
+                last_name = data.get('last_name', order.customer.last_name)
+                address_line_1 = data.get('address_line_1', '')
+                address_line_2 = data.get('address_line_2', '')
+                address = f"{address_line_1} {address_line_2}".strip()
+                dob = data.get('dob', order.customer.dob)
+
+                customer_id = get_or_create_user(
+                    username=phone or email,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role='customer',
+                    phone=phone,
+                    address=address,
+                    password=None,  # No need to update password
+                    tenant=user.tenant
+                )
+                order.customer = User.objects.get(id=customer_id)
+
                 if data.get('status') in ['completed', 'cancelled']:
                     if order.table:
                         order.table.occupied = False
@@ -151,8 +174,6 @@ class OrderViewSet(viewsets.ModelViewSet):
                 if 'food_items' in data:
                     order.food_items.set(data['food_items'])
 
-                
-
                 # Update modified_at and modified_by
                 order.modified_at.append(str(timezone.now()))
                 order.modified_by.append(f"{user.username}({user.id})")
@@ -180,6 +201,29 @@ class OrderViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 order = get_object_or_404(self.get_queryset(), pk=pk)
+
+                # Update user details if provided
+                phone = data.get('phone', order.customer.phone)
+                email = data.get('email', order.customer.email)
+                first_name = data.get('first_name', order.customer.first_name)
+                last_name = data.get('last_name', order.customer.last_name)
+                address_line_1 = data.get('address_line_1', '')
+                address_line_2 = data.get('address_line_2', '')
+                address = f"{address_line_1} {address_line_2}".strip()
+                dob = data.get('dob', order.customer.dob)
+
+                customer_id = get_or_create_user(
+                    username=phone or email,
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    role='customer',
+                    phone=phone,
+                    address=address,
+                    password=None,  # No need to update password
+                    tenant=user.tenant
+                )
+                order.customer = User.objects.get(id=customer_id)
 
                 if data.get('status') in ['completed', 'cancelled']:
                     if order.table:
