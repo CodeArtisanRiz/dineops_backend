@@ -9,17 +9,29 @@ class OrderSerializer(serializers.ModelSerializer):
     )
     phone = serializers.SerializerMethodField()
     table_number = serializers.SerializerMethodField()
+    customer = serializers.SerializerMethodField()  # Add this line
 
     class Meta:
         model = Order
         fields = '__all__'
-        read_only_fields = ['modified_at', 'modified_by']  # Make these fields read-only
+        read_only_fields = ['modified_at', 'modified_by']
 
     def get_phone(self, obj):
         return obj.customer.phone
 
     def get_table_number(self, obj):
         return obj.table.id if obj.table else None
+
+    def get_customer(self, obj):  # Add this method
+        return {
+            "id": obj.customer.id,
+            "username": obj.customer.username,
+            "email": obj.customer.email,
+            "first_name": obj.customer.first_name,
+            "last_name": obj.customer.last_name,
+            "phone": obj.customer.phone,
+            "address": obj.customer.address,
+        }
 
     def validate(self, data):
         if len(data['food_items']) != len(data['quantity']):
@@ -53,6 +65,7 @@ class OrderSerializer(serializers.ModelSerializer):
         instance.total_price = validated_data.get('total_price', instance.total_price)
         instance.notes = validated_data.get('notes', instance.notes)
         instance.kot_count = validated_data.get('kot_count', instance.kot_count)  # Ensure kot_count is updated
+        instance.payment_method = validated_data.get('payment_method', instance.payment_method)  # Ensure payment_method is updated
         instance.save()
 
         return instance

@@ -114,10 +114,28 @@ class OrderViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 order = get_object_or_404(self.get_queryset(), pk=pk)
 
-                if order.order_type == 'dine_in' and order.table:
-                    if data.get('status') in ['completed', 'cancelled']:
+                if data.get('status') in ['completed', 'cancelled']:
+                    if order.table:
                         order.table.occupied = False
                         order.table.save()
+                # Free the previous table if the table is being updated
+                elif order.table and 'table' in data:
+                    previous_table = order.table
+                    previous_table.occupied = False
+                    previous_table.save()
+
+                    # Update table if provided
+                    if 'table' in data:
+                        table_id = data['table']
+                        if table_id:
+                            table = Table.objects.get(pk=table_id)
+                            if table.occupied:
+                                return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
+                            table.occupied = True
+                            table.save()
+                            order.table = table
+                        else:
+                            order.table = None
 
                 # Update order details
                 order.status = data.get('status', order.status)
@@ -127,15 +145,18 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.notes = data.get('notes', order.notes)
                 order.quantity = data.get('quantity', order.quantity)  # Ensure quantity is updated
                 order.kot_count = data.get('kot_count', order.kot_count)  # Ensure kot_count is updated
+                order.payment_method = data.get('payment_method', order.payment_method)  # Ensure payment_method is updated
 
                 # Update food_items if provided
                 if 'food_items' in data:
                     order.food_items.set(data['food_items'])
+
                 
+
                 # Update modified_at and modified_by
                 order.modified_at.append(str(timezone.now()))
                 order.modified_by.append(f"{user.username}({user.id})")
-                
+
                 order.save()
 
                 serializer = OrderSerializer(order)
@@ -160,10 +181,28 @@ class OrderViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 order = get_object_or_404(self.get_queryset(), pk=pk)
 
-                if order.order_type == 'dine_in' and order.table:
-                    if data.get('status') in ['completed', 'cancelled']:
+                if data.get('status') in ['completed', 'cancelled']:
+                    if order.table:
                         order.table.occupied = False
                         order.table.save()
+
+                # Free the previous table if the table is being updated
+                elif order.table and 'table' in data:
+                    previous_table = order.table
+                    previous_table.occupied = False
+                    previous_table.save()
+                    # Update table if provided
+                    if 'table' in data:
+                        table_id = data['table']
+                        if table_id:
+                            table = Table.objects.get(pk=table_id)
+                            if table.occupied:
+                                return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
+                            table.occupied = True
+                            table.save()
+                            order.table = table
+                        else:
+                            order.table = None
 
                 # Update order details partially
                 if 'status' in data:
@@ -180,15 +219,17 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.quantity = data['quantity']  # Ensure quantity is updated
                 if 'kot_count' in data:
                     order.kot_count = data['kot_count']  # Ensure kot_count is updated
+                if 'payment_method' in data:
+                    order.payment_method = data['payment_method']  # Ensure payment_method is updated
 
                 # Update food_items if provided
                 if 'food_items' in data:
                     order.food_items.set(data['food_items'])
-                
+
                 # Update modified_at and modified_by
                 order.modified_at.append(str(timezone.now()))
                 order.modified_by.append(f"{user.username}({user.id})")
-                
+
                 order.save()
 
                 serializer = OrderSerializer(order)
