@@ -3,17 +3,19 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.parsers import MultiPartParser, FormParser  # Add these imports
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
-import json  # Import json module
+from django.db import IntegrityError
+import json
 
 from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment
 from accounts.models import Tenant
-from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, BillingSerializer, PaymentSerializer
-from utils.image_upload import handle_image_upload  # Import handle_image_upload
+from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, BillingSerializer, PaymentSerializer, UserSerializer
+from utils.image_upload import handle_image_upload
 from utils.get_or_create_user import get_or_create_user
 
 logger = logging.getLogger(__name__)
+from accounts.models import User
 
 class RoomViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -177,12 +179,19 @@ class ServiceViewSet(viewsets.ViewSet):
 
 class BookingViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
-    parser_classes = [MultiPartParser, FormParser]  # Ensure parser classes are included
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def create(self, request):
         user = request.user
-        data = request.data.dict()  # Convert QueryDict to a regular dict
         tenant = user.tenant
+
+        # Check if the request is a form submission
+        if request.content_type.startswith('multipart/form-data'):
+            data = request.data.dict()  # Convert QueryDict to a regular dict
+            rooms_data = json.loads(data.get('rooms', '[]'))  # Parse rooms data from JSON string
+        else:
+            data = request.data
+            rooms_data = data.get('rooms', [])
 
         # Handle guest details
         phone = data.get('phone')
@@ -195,7 +204,7 @@ class BookingViewSet(viewsets.ViewSet):
         address = f"{address_line_1} {address_line_2}".strip()
 
         guest_id = get_or_create_user(
-            username=email,  # Assuming email is used as the username
+            username=email,
             email=email,
             first_name=first_name,
             last_name=last_name,
@@ -209,7 +218,7 @@ class BookingViewSet(viewsets.ViewSet):
         # Handle ID card image upload
         id_card_urls = handle_image_upload(request, tenant.tenant_name, 'hotel/id_card', 'id_card')
         if id_card_urls:
-            data['id_card'] = id_card_urls  # Store as list of URLs
+            data['id_card'] = id_card_urls
         else:
             data['id_card'] = None
 
@@ -220,7 +229,6 @@ class BookingViewSet(viewsets.ViewSet):
         data['advance_paid'] = data.get('advance_paid', 0.0)
 
         # Check room availability
-        rooms_data = json.loads(data.get('rooms', '[]'))  # Parse rooms data from JSON string
         unavailable_rooms = []
         for room_data in rooms_data:
             room_id = room_data.get('room')
@@ -251,26 +259,37 @@ class BookingViewSet(viewsets.ViewSet):
         # Create the booking
         serializer = BookingSerializer(data=data)
         if serializer.is_valid():
-            booking = serializer.save()
+            try:
+                booking = serializer.save()
 
-            # Allocate rooms
-            for room_data in rooms_data:
-                room_id = room_data.get('room')
-                start_date = room_data.get('start_date')
-                end_date = room_data.get('end_date')
+                # Allocate rooms
+                for room_data in rooms_data:
+                    room_id = room_data.get('room')
+                    start_date = room_data.get('start_date')
+                    end_date = room_data.get('end_date')
 
-                room_booking = RoomBooking(
-                    booking=booking,
-                    room_id=room_id,
-                    start_date=start_date,
-                    end_date=end_date,
-                    status=1,  # Set initial status to 'Pending'
-                    is_active=True
-                )
-                room_booking.save()
+                    room_booking = RoomBooking(
+                        booking=booking,
+                        room_id=room_id,
+                        start_date=start_date,
+                        end_date=end_date,
+                        status=1,  # Set initial status to 'Pending'
+                        is_active=True
+                    )
+                    room_booking.save()
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                # Fetch the detailed guest and room information for the response
+                booking_data = BookingSerializer(booking).data
+                booking_data['guests'] = [UserSerializer(User.objects.get(id=guest_id)).data]
+                booking_data['rooms'] = RoomBookingSerializer(RoomBooking.objects.filter(booking=booking), many=True).data
+
+                return Response(booking_data, status=status.HTTP_201_CREATED)
+            except IntegrityError as e:
+                logger.error(f"IntegrityError: {e}")
+                return Response({"error": "Integrity error occurred", "details": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            logger.error(f"Validation error: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request):
         queryset = Booking.objects.all()

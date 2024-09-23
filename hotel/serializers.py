@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment
 import logging
-from datetime import date  # Add this import
-from accounts.models import User  # Import User model
+from datetime import date
+from accounts.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class RoomSerializer(serializers.ModelSerializer):
     class Meta:
         model = Room
         fields = ['id', 'room_number', 'room_type', 'beds', 'price', 'description', 'image', 'status', 'bookings']
-        extra_kwargs = {'tenant': {'required': False}}  # Make tenant not required
+        extra_kwargs = {'tenant': {'required': False}}
 
     def get_bookings(self, obj):
         active_bookings = obj.roombooking_set.filter(is_active=True)
@@ -38,18 +38,31 @@ class ServiceSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'address']  # Include all necessary fields
-        
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'address']
+
 class BookingSerializer(serializers.ModelSerializer):
     rooms = RoomBookingSerializer(source='roombooking_set', many=True, read_only=True)
-    guests = UserSerializer(many=True, read_only=True)  # Use UserSerializer for guests
+    guests = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)
 
     class Meta:
         model = Booking
         fields = ['id', 'booking_date', 'status', 'total_amount', 'tenant', 'guests', 'rooms', 'id_card']
         extra_kwargs = {
-            'id_card': {'required': False, 'allow_null': True}  # Allow null values
+            'id_card': {'required': False, 'allow_null': True}
         }
+
+    def create(self, validated_data):
+        guests_data = validated_data.pop('guests', [])
+        booking = super().create(validated_data)
+        booking.guests.set(guests_data)
+        return booking
+
+    def update(self, instance, validated_data):
+        guests_data = validated_data.pop('guests', [])
+        instance = super().update(instance, validated_data)
+        if guests_data:
+            instance.guests.set(guests_data)
+        return instance
 
 class CheckInSerializer(serializers.ModelSerializer):
     class Meta:
