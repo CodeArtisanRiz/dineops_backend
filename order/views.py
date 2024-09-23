@@ -127,6 +127,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.notes = data.get('notes', order.notes)
                 order.quantity = data.get('quantity', order.quantity)  # Ensure quantity is updated
                 order.kot_count = data.get('kot_count', order.kot_count)  # Ensure kot_count is updated
+
+                # Update food_items if provided
+                if 'food_items' in data:
+                    order.food_items.set(data['food_items'])
                 
                 # Update modified_at and modified_by
                 order.modified_at.append(str(timezone.now()))
@@ -148,7 +152,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             logger.exception(f"Unexpected error: {e}")
             return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def patch(self, request, pk=None):
+    def partial_update(self, request, pk=None):
         user = request.user
         data = request.data
 
@@ -176,6 +180,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.quantity = data['quantity']  # Ensure quantity is updated
                 if 'kot_count' in data:
                     order.kot_count = data['kot_count']  # Ensure kot_count is updated
+
+                # Update food_items if provided
+                if 'food_items' in data:
+                    order.food_items.set(data['food_items'])
                 
                 # Update modified_at and modified_by
                 order.modified_at.append(str(timezone.now()))
