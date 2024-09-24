@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, FoodItem
+from .models import Order, FoodItem, Table
 
 class OrderSerializer(serializers.ModelSerializer):
     food_items = serializers.PrimaryKeyRelatedField(many=True, queryset=FoodItem.objects.all())
@@ -8,7 +8,7 @@ class OrderSerializer(serializers.ModelSerializer):
         required=True
     )
     phone = serializers.SerializerMethodField()
-    table_number = serializers.SerializerMethodField()
+    # table_numbers = serializers.SerializerMethodField()  # Update to handle multiple tables
     customer = serializers.SerializerMethodField()  # Add this line
 
     class Meta:
@@ -19,8 +19,8 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_phone(self, obj):
         return obj.customer.phone
 
-    def get_table_number(self, obj):
-        return obj.table.id if obj.table else None
+    def get_table_numbers(self, obj):  # Update to handle multiple tables
+        return [table.id for table in obj.tables.all()]
 
     def get_customer(self, obj):  # Add this method
         return {
@@ -41,10 +41,12 @@ class OrderSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         food_items = validated_data.pop('food_items')
         quantity = validated_data.pop('quantity')
+        tables = validated_data.pop('tables', [])  # Ensure tables is handled
 
         order = Order.objects.create(**validated_data)
         order.food_items.set(food_items)
         order.quantity = quantity  # Ensure quantity is set
+        order.tables.set(tables)  # Set the list of tables
         order.kot_count = validated_data.get('kot_count', 0)  # Ensure kot_count is set
         order.save()
 
@@ -53,11 +55,14 @@ class OrderSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         food_items = validated_data.pop('food_items', None)
         quantity = validated_data.pop('quantity', None)
+        tables = validated_data.pop('tables', None)  # Ensure tables is handled
 
         if food_items is not None:
             instance.food_items.set(food_items)
         if quantity is not None:
             instance.quantity = quantity  # Ensure quantity is updated
+        if tables is not None:
+            instance.tables.set(tables)  # Set the list of tables
 
         instance.status = validated_data.get('status', instance.status)
         instance.discount = validated_data.get('discount', instance.discount)

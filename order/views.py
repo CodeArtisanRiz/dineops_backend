@@ -60,29 +60,30 @@ class OrderViewSet(viewsets.ModelViewSet):
 
                 # Validate order_type and table/room requirements
                 if order_type == 'dine_in':
-                    table_id = data.get('table')
-                    if not table_id:
-                        return Response({"error": "Table is required for dine-in orders."}, status=status.HTTP_400_BAD_REQUEST)
-                    try:
-                        table = Table.objects.get(pk=table_id)
-                    except Table.DoesNotExist:
-                        return Response({"error": f"Table {table_id} does not exist."}, status=status.HTTP_400_BAD_REQUEST)
-
-                    if table.occupied:
-                        return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
-
-                    table.occupied = True
-                    table.save()
+                    table_ids = data.get('tables', [])  # Change 'table' to 'tables'
+                    if not table_ids:
+                        return Response({"error": "At least one table is required for dine-in orders."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    tables = []
+                    for table_id in table_ids:
+                        try:
+                            table = Table.objects.get(pk=table_id)
+                            if table.occupied:
+                                return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
+                            table.occupied = True
+                            table.save()
+                            tables.append(table)
+                        except Table.DoesNotExist:
+                            return Response({"error": f"Table {table_id} does not exist."}, status=status.HTTP_400_BAD_REQUEST)
                 elif order_type == 'hotel':
                     return Response({"error": "Hotel is not yet implemented."}, status=status.HTTP_400_BAD_REQUEST)
                 else:
-                    table = None
+                    tables = []
 
                 # Create order
                 order = Order.objects.create(
                     tenant=tenant,
                     customer=customer,
-                    table=table,
                     total_price=data.get('total_price'),
                     discount=data.get('discount'),
                     coupon_used=data.get('coupon_used', []),
@@ -93,6 +94,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     quantity=data.get('quantity', [])  # Ensure quantity is set
                 )
                 order.food_items.set(data.get('food_items'))
+                order.tables.set(tables)  # Set the list of tables
                 order.kot_count = data.get('kot_count', 0)  # Ensure kot_count is set
 
                 serializer = OrderSerializer(order)
@@ -138,29 +140,34 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.customer = User.objects.get(id=customer_id)
 
                 if data.get('status') in ['completed', 'cancelled']:
-                    if order.table:
-                        order.table.occupied = False
-                        order.table.save()
-                # Free the previous table if the table is being updated
-                elif order.table and 'table' in data:
-                    previous_table = order.table
-                    previous_table.occupied = False
-                    previous_table.save()
+                    for table in order.tables.all():
+                        table.occupied = False
+                        table.save()
+                # Free the previous tables if the tables are being updated
+                elif order.tables.exists() and 'tables' in data:
+                    for previous_table in order.tables.all():
+                        previous_table.occupied = False
+                        previous_table.save()
 
-                    # Update table if provided
-                    if 'table' in data:
-                        table_id = data['table']
-                        if table_id:
+                    # Update tables if provided
+                    if 'tables' in data:
+                        table_ids = data['tables']
+                        tables = []
+                        for table_id in table_ids:
                             table = Table.objects.get(pk=table_id)
                             if table.occupied:
                                 return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
                             table.occupied = True
                             table.save()
-                            order.table = table
-                        else:
-                            order.table = None
+                            tables.append(table)
+                        order.tables.set(tables)
+                    else:
+                        order.tables.clear()
 
                 # Update order details
+                if data.get('status') == 'kot':
+                    order.kot_count += 1  # Increment kot_count if status is 'kot'
+                
                 order.status = data.get('status', order.status)
                 order.discount = data.get('discount', order.discount)
                 order.coupon_used = data.get('coupon_used', order.coupon_used)
@@ -226,29 +233,35 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.customer = User.objects.get(id=customer_id)
 
                 if data.get('status') in ['completed', 'cancelled']:
-                    if order.table:
-                        order.table.occupied = False
-                        order.table.save()
+                    for table in order.tables.all():
+                        table.occupied = False
+                        table.save()
 
-                # Free the previous table if the table is being updated
-                elif order.table and 'table' in data:
-                    previous_table = order.table
-                    previous_table.occupied = False
-                    previous_table.save()
-                    # Update table if provided
-                    if 'table' in data:
-                        table_id = data['table']
-                        if table_id:
+                # Free the previous tables if the tables are being updated
+                elif order.tables.exists() and 'tables' in data:
+                    for previous_table in order.tables.all():
+                        previous_table.occupied = False
+                        previous_table.save()
+
+                    # Update tables if provided
+                    if 'tables' in data:
+                        table_ids = data['tables']
+                        tables = []
+                        for table_id in table_ids:
                             table = Table.objects.get(pk=table_id)
                             if table.occupied:
                                 return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
                             table.occupied = True
                             table.save()
-                            order.table = table
-                        else:
-                            order.table = None
+                            tables.append(table)
+                        order.tables.set(tables)
+                    else:
+                        order.tables.clear()
 
                 # Update order details partially
+                if data.get('status') == 'kot':
+                    order.kot_count += 1  # Increment kot_count if status is 'kot'
+                
                 if 'status' in data:
                     order.status = data['status']
                 if 'discount' in data:
@@ -261,8 +274,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.notes = data['notes']
                 if 'quantity' in data:
                     order.quantity = data['quantity']  # Ensure quantity is updated
-                if 'kot_count' in data:
-                    order.kot_count = data['kot_count']  # Ensure kot_count is updated
+                # if 'kot_count' in data:
+                #     order.kot_count = data['kot_count']  # Ensure kot_count is updated
                 if 'payment_method' in data:
                     order.payment_method = data['payment_method']  # Ensure payment_method is updated
 

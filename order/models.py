@@ -37,7 +37,7 @@ class Order(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='orders')
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     order_type = models.CharField(max_length=20, choices=ORDER_CHOICES, default='dine_in')
-    table = models.ForeignKey(Table, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    tables = models.ManyToManyField(Table, blank=True, related_name='orders')  # Add this line
     # room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
