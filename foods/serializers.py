@@ -15,7 +15,7 @@ class TableSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Table
-        fields = ['id', 'table_number', 'occupied', 'tenant']  # Add 'tenant' to fields
+        fields = ['id', 'table_number', 'occupied', 'tenant', 'order']
         read_only_fields = ['tenant']  # Added 'tenant' to read_only_fields
     
     def create(self, validated_data):

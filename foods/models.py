@@ -46,6 +46,7 @@ class Table(models.Model):
     tenant = models.ForeignKey(Tenant, related_name='tables', on_delete=models.CASCADE)
     table_number = models.PositiveIntegerField(default=0)  # Remove unique constraint
     occupied = models.BooleanField(default=False)
+    order = models.IntegerField(null=True, blank=True)  # Add order field to store order ID
 
     class Meta:
         unique_together = ('tenant', 'table_number')  # Ensure table_number is unique per tenant
