@@ -17,14 +17,16 @@ def list_root_files(request):
     # Get the root dir
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     
-    # List files in the root dir
-    files = []
-    for file_name in os.listdir(root_dir):
-        file_path = os.path.join(root_dir, file_name)
-        if os.path.isfile(file_path):
-            files.append(file_name)
+    # List files and folders in the root dir
+    items = []
+    for item_name in os.listdir(root_dir):
+        item_path = os.path.join(root_dir, item_name)
+        if os.path.isfile(item_path):
+            items.append({'name': item_name, 'type': 'file'})
+        elif os.path.isdir(item_path):
+            items.append({'name': item_name, 'type': 'folder'})
     
-    return JsonResponse({'files': files})
+    return JsonResponse({'items': items})
 
 @api_view(['GET'])
 @permission_classes([IsSuperuser])  # Superuser Only
