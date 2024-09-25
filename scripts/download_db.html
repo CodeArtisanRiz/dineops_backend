@@ -136,8 +136,8 @@
             event.preventDefault();
             const token = document.getElementById('token').value;
             const baseUrl = document.getElementById('baseUrlCheckbox').checked 
-                ? 'https://example1.com/download-db/' 
-                : 'https://example2.com/download-db/';
+                ? 'https://dineops.onrender.com/download-db/' 
+                : 'http://127.0.0.1:8000//download-db/';
 
             fetch(baseUrl, {
                 method: 'GET',
