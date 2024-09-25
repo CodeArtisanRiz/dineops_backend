@@ -42,3 +42,6 @@ def download_db(request):
     response = FileResponse(open(db_path, 'rb'), as_attachment=True, filename='db.sqlite3')
 
     return response
+
+def download_db_page(request):
+    return render(request, 'download_db.html')
