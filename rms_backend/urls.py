@@ -20,6 +20,8 @@ from . import views
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('root-files/', views.list_root_files, name='list_root_files'),
+    path('download-db/', views.download_db, name='download_database'),
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls')),# Include accounts app URLs
     path('api/foods/', include('foods.urls')),  # Include foods app URLs
