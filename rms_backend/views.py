@@ -44,4 +44,4 @@ def download_db(request):
     return response
 
 def download_db_page(request):
-    return render(request, 'download_db.html')
+    return render(request, 'db_backup.html')
