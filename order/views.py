@@ -145,7 +145,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 )
                 order.customer = User.objects.get(id=customer_id)
 
-                if data.get('status') in ['completed', 'cancelled']:
+                if data.get('status') in ['settled', 'cancelled']:
                     for table in order.tables.all():
                         table.occupied = False
                         table.order = None  # Clear the order ID
@@ -248,7 +248,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 )
                 order.customer = User.objects.get(id=customer_id)
 
-                if data.get('status') in ['completed', 'cancelled']:
+                if data.get('status') in ['settled', 'cancelled']:
                     for table in order.tables.all():
                         table.occupied = False
                         table.order = None  # Clear the order ID

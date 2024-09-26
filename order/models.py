@@ -13,7 +13,6 @@ class Order(models.Model):
         ('kot', 'Kot'),
         ('served', 'Served'),
         ('billed', "Billed"),
-        # ('completed', 'Completed'),
         ('settled', "Setted"),
         ('cancelled', 'Cancelled')
 
