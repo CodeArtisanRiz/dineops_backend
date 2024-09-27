@@ -6,16 +6,17 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
+from django.utils import timezone
 import json
+from datetime import datetime
 
 from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment
-from accounts.models import Tenant
+from accounts.models import Tenant, User
 from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, BillingSerializer, PaymentSerializer, UserSerializer
 from utils.image_upload import handle_image_upload
 from utils.get_or_create_user import get_or_create_user
 
 logger = logging.getLogger(__name__)
-from accounts.models import User
 
 class RoomViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -465,35 +466,41 @@ class CheckInViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
-        user_data = request.data.get('user')
-        if not user_data:
-            return Response({"error": "User data is required for check-in."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            booking_id = request.data.get('booking_id')
+            room_id = request.data.get('room_id')
+            check_in_date_str = request.data.get('check_in_date', timezone.now().isoformat())
 
-        user_id = get_or_create_user(
-            username=user_data['username'],
-            email=user_data['email'],
-            first_name=user_data['first_name'],
-            last_name=user_data['last_name'],
-            role=user_data.get('role', 'guest'),
-            phone=user_data.get('phone', ''),
-            address=user_data.get('address', ''),
-            password=user_data.get('password', ''),
-            tenant=request.user.tenant
-        )
+            # Parse the check_in_date string to a datetime object
+            check_in_date = datetime.fromisoformat(check_in_date_str)
 
-        request.data['checked_in_by'] = user_id
+            logger.debug(f"Attempting to check in for booking_id: {booking_id}, room_id: {room_id} at {check_in_date}")
 
-        serializer = CheckInSerializer(data=request.data)
-        if serializer.is_valid():
-            check_in = serializer.save()
+            room_booking = get_object_or_404(RoomBooking, booking_id=booking_id, room_id=room_id)
+            logger.debug(f"Room booking start date: {room_booking.start_date}, end date: {room_booking.end_date}")
 
-            # Update RoomBooking status to 'Confirmed'
-            room_booking = check_in.room_booking
-            room_booking.status = 2  # Set status to 'Confirmed'
-            room_booking.save()
+            if not (room_booking.start_date <= check_in_date <= room_booking.end_date):
+                logger.error("Check-in date is not within the booking period.")
+                raise ValidationError("Check-in date must be within the booking period.")
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if room_booking.status != 1:  # Ensure the room is in 'Pending' status
+                logger.error("Room is not available for check-in.")
+                raise ValidationError("Room is not available for check-in.")
+
+            request.data['checked_in_by'] = request.user.id
+            request.data['room_booking'] = room_booking.id
+            serializer = CheckInSerializer(data=request.data)
+            if serializer.is_valid():
+                check_in = serializer.save()
+                room_booking.status = 3  # Set status to 'Checked-in'
+                room_booking.save()
+                logger.info(f"Check-in successful for room_booking_id: {room_booking.id}")
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            logger.error(f"Check-in failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception("An error occurred during check-in.")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, pk=None):
         queryset = CheckIn.objects.all()
@@ -525,10 +532,31 @@ class CheckOutViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
+        booking_id = request.data.get('booking_id')
+        room_id = request.data.get('room_id')
+        check_out_date = request.data.get('check_out_date', timezone.now())
+
+        logger.debug(f"Attempting to check out for booking_id: {booking_id}, room_id: {room_id} at {check_out_date}")
+
+        room_booking = get_object_or_404(RoomBooking, booking_id=booking_id, room_id=room_id)
+        if not (room_booking.start_date <= check_out_date <= room_booking.end_date):
+            logger.error("Check-out date is not within the booking period.")
+            raise ValidationError("Check-out date must be within the booking period.")
+
+        if room_booking.status != 3:  # Ensure the room is in 'Checked-in' status
+            logger.error("Room is not available for check-out.")
+            raise ValidationError("Room is not available for check-out.")
+
+        request.data['checked_out_by'] = request.user.id
+        request.data['room_booking'] = room_booking.id
         serializer = CheckOutSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            check_out = serializer.save()
+            room_booking.status = 4  # Set status to 'Checked-out'
+            room_booking.save()
+            logger.info(f"Check-out successful for room_booking_id: {room_booking.id}")
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+        logger.error(f"Check-out failed: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
