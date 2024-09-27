@@ -179,6 +179,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.kot_count += 1  # Increment kot_count if status is 'kot'
                 
                 if 'status' in data:
+                    if data['status'] not in dict(Order.STATUS_CHOICES):
+                        return Response({"error": f"Invalid status: {data['status']}"}, status=status.HTTP_400_BAD_REQUEST)
                     order.status = data['status']
                 if 'discount' in data:
                     order.discount = data['discount']
@@ -282,6 +284,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order.kot_count += 1  # Increment kot_count if status is 'kot'
                 
                 if 'status' in data:
+                    if data['status'] not in dict(Order.STATUS_CHOICES):
+                        return Response({"error": f"Invalid status: {data['status']}"}, status=status.HTTP_400_BAD_REQUEST)
                     order.status = data['status']
                 if 'discount' in data:
                     order.discount = data['discount']
