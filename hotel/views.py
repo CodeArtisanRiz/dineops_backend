@@ -532,32 +532,41 @@ class CheckOutViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
-        booking_id = request.data.get('booking_id')
-        room_id = request.data.get('room_id')
-        check_out_date = request.data.get('check_out_date', timezone.now())
+        try:
+            booking_id = request.data.get('booking_id')
+            room_id = request.data.get('room_id')
+            check_out_date_str = request.data.get('check_out_date', timezone.now().isoformat())
 
-        logger.debug(f"Attempting to check out for booking_id: {booking_id}, room_id: {room_id} at {check_out_date}")
+            # Parse the check_out_date string to a datetime object
+            check_out_date = datetime.fromisoformat(check_out_date_str)
 
-        room_booking = get_object_or_404(RoomBooking, booking_id=booking_id, room_id=room_id)
-        if not (room_booking.start_date <= check_out_date <= room_booking.end_date):
-            logger.error("Check-out date is not within the booking period.")
-            raise ValidationError("Check-out date must be within the booking period.")
+            logger.debug(f"Attempting to check out for booking_id: {booking_id}, room_id: {room_id} at {check_out_date}")
 
-        if room_booking.status != 3:  # Ensure the room is in 'Checked-in' status
-            logger.error("Room is not available for check-out.")
-            raise ValidationError("Room is not available for check-out.")
+            room_booking = get_object_or_404(RoomBooking, booking_id=booking_id, room_id=room_id)
+            logger.debug(f"Room booking start date: {room_booking.start_date}, end date: {room_booking.end_date}")
 
-        request.data['checked_out_by'] = request.user.id
-        request.data['room_booking'] = room_booking.id
-        serializer = CheckOutSerializer(data=request.data)
-        if serializer.is_valid():
-            check_out = serializer.save()
-            room_booking.status = 4  # Set status to 'Checked-out'
-            room_booking.save()
-            logger.info(f"Check-out successful for room_booking_id: {room_booking.id}")
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        logger.error(f"Check-out failed: {serializer.errors}")
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if not (room_booking.start_date <= check_out_date <= room_booking.end_date):
+                logger.error("Check-out date is not within the booking period.")
+                raise ValidationError("Check-out date must be within the booking period.")
+
+            if room_booking.status != 3:  # Ensure the room is in 'Checked-in' status
+                logger.error("Room is not available for check-out.")
+                raise ValidationError("Room is not available for check-out.")
+
+            request.data['checked_out_by'] = request.user.id
+            request.data['room_booking'] = room_booking.id
+            serializer = CheckOutSerializer(data=request.data)
+            if serializer.is_valid():
+                check_out = serializer.save()
+                room_booking.status = 4  # Set status to 'Checked-out'
+                room_booking.save()
+                logger.info(f"Check-out successful for room_booking_id: {room_booking.id}")
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            logger.error(f"Check-out failed: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            logger.exception("An error occurred during check-out.")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, pk=None):
         queryset = CheckOut.objects.all()
