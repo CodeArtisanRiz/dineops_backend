@@ -82,7 +82,6 @@ class CheckIn(models.Model):
     room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
     check_in_date = models.DateTimeField(default=timezone.now)
     checked_in_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    status = models.BooleanField(default=True)
 
     def __str__(self):
         return f"CheckIn {self.id} - RoomBooking: {self.room_booking.id}"
@@ -91,7 +90,6 @@ class CheckOut(models.Model):
     room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
     check_out_date = models.DateTimeField(default=timezone.now)
     checked_out_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    status = models.BooleanField(default=True)
 
     def __str__(self):
         return f"CheckOut {self.id} - RoomBooking: {self.room_booking.id}"
