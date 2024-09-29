@@ -124,3 +124,12 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment {self.id} - Billing: {self.billing.id}"
+
+class GuestDetails(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='guest_details')
+    coming_from = models.CharField(max_length=255)
+    going_to = models.CharField(max_length=255)
+    purpose = models.CharField(max_length=255)
+
+    def __str__(self):
+        return f"GuestDetails for User ID: {self.user.id}"

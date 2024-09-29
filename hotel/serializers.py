@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment
+from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment, GuestDetails
 import logging
 from datetime import date
 from accounts.models import User
@@ -13,7 +13,7 @@ class RoomBookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RoomBooking
-        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_details', 'check_out_date', 'checked_out_by']
+        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_out_date', 'checked_out_by', 'check_in_details']
 
     def get_check_out_date(self, obj):
         check_out = CheckOut.objects.filter(room_booking=obj).first()
@@ -80,10 +80,17 @@ class BookingSerializer(serializers.ModelSerializer):
             instance.guests.set(guests_data)
         return instance
 
+class GuestDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GuestDetails
+        fields = ['coming_from', 'going_to', 'purpose']
+
 class GuestUserSerializer(serializers.ModelSerializer):
+    guest_details = GuestDetailsSerializer(read_only=True)  # Include GuestDetails
+
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'address']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'address', 'guest_details']
 
 class CheckInSerializer(serializers.ModelSerializer):
     guests = GuestUserSerializer(many=True, read_only=True)  # Use GuestUserSerializer

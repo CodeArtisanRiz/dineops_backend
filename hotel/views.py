@@ -10,9 +10,9 @@ from django.utils import timezone
 import json
 from datetime import datetime
 
-from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment
+from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment, GuestDetails
 from accounts.models import Tenant, User
-from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, BillingSerializer, PaymentSerializer, UserSerializer
+from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, BillingSerializer, PaymentSerializer, UserSerializer, GuestUserSerializer, CheckInDetailSerializer
 from utils.image_upload import handle_image_upload
 from utils.get_or_create_user import get_or_create_user
 
@@ -477,11 +477,11 @@ class CheckInViewSet(viewsets.ViewSet):
                 logger.error("Room is not available for check-in.")
                 raise ValidationError("Room is not available for check-in.")
 
-            # Create users for guests
+            # Create users for guests and their details
             guest_ids = []
             for guest in guests_data:
                 guest_id = get_or_create_user(
-                    username=guest['phone'] or guest['email'],
+                    username= guest['phone'] or guest['email'],
                     email=guest['email'],
                     first_name=guest['first_name'],
                     last_name=guest['last_name'],
@@ -492,6 +492,18 @@ class CheckInViewSet(viewsets.ViewSet):
                     tenant=request.user.tenant
                 )
                 guest_ids.append(guest_id)
+
+                # Create or update GuestDetails
+                guest_user = User.objects.get(id=guest_id)
+                guest_details, created = GuestDetails.objects.update_or_create(
+                    user=guest_user,
+                    defaults={
+                        'coming_from': guest.get('coming_from', ''),
+                        'going_to': guest.get('going_to', ''),
+                        'purpose': guest.get('purpose', '')
+                    }
+                )
+                logger.debug(f"GuestDetails for {guest_user.email}: {guest_details}")
 
             request.data['checked_in_by'] = request.user.id
             request.data['room_booking'] = room_booking.id
@@ -504,7 +516,7 @@ class CheckInViewSet(viewsets.ViewSet):
 
                 # Add guests to the response
                 response_data = serializer.data
-                response_data['guests'] = [UserSerializer(User.objects.get(id=guest_id)).data for guest_id in guest_ids]
+                response_data['guests'] = [GuestUserSerializer(User.objects.get(id=guest_id)).data for guest_id in guest_ids]
 
                 logger.info(f"Check-in successful for room_booking_id: {room_booking.id}")
                 return Response(response_data, status=status.HTTP_201_CREATED)
