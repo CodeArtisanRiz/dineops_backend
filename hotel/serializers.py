@@ -85,10 +85,17 @@ class BookingSerializer(serializers.ModelSerializer):
             instance.guests.set(guests_data)
         return instance
 
+class GuestUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'address']
+
 class CheckInSerializer(serializers.ModelSerializer):
+    guests = GuestUserSerializer(many=True, read_only=True)  # Use GuestUserSerializer
+
     class Meta:
         model = CheckIn
-        fields = ['id', 'room_booking', 'check_in_date', 'checked_in_by']
+        fields = ['id', 'room_booking', 'check_in_date', 'checked_in_by', 'guests']
 
 class CheckOutSerializer(serializers.ModelSerializer):
     class Meta:

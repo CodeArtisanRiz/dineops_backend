@@ -454,22 +454,12 @@ class RoomBookingViewSet(viewsets.ViewSet):
 class CheckInViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
-    def list(self, request):
-        queryset = CheckIn.objects.all()
-        serializer = CheckInSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        queryset = CheckIn.objects.all()
-        check_in = get_object_or_404(queryset, pk=pk)
-        serializer = CheckInSerializer(check_in)
-        return Response(serializer.data)
-
     def create(self, request):
         try:
             booking_id = request.data.get('booking_id')
             room_id = request.data.get('room_id')
             check_in_date_str = request.data.get('check_in_date', timezone.now().isoformat())
+            guests_data = request.data.get('guests', [])
 
             # Parse the check_in_date string to a datetime object
             check_in_date = datetime.fromisoformat(check_in_date_str)
@@ -487,20 +477,53 @@ class CheckInViewSet(viewsets.ViewSet):
                 logger.error("Room is not available for check-in.")
                 raise ValidationError("Room is not available for check-in.")
 
+            # Create users for guests
+            guest_ids = []
+            for guest in guests_data:
+                guest_id = get_or_create_user(
+                    username=guest['phone'] or guest['email'],
+                    email=guest['email'],
+                    first_name=guest['first_name'],
+                    last_name=guest['last_name'],
+                    role='guest',
+                    phone=guest['phone'],
+                    address=f"{guest['address_line_1']} {guest['address_line_2']}".strip(),
+                    password= guest['dob'] or 'guest',  # Default password, can be changed later
+                    tenant=request.user.tenant
+                )
+                guest_ids.append(guest_id)
+
             request.data['checked_in_by'] = request.user.id
             request.data['room_booking'] = room_booking.id
             serializer = CheckInSerializer(data=request.data)
             if serializer.is_valid():
                 check_in = serializer.save()
+                check_in.guests.set(guest_ids)  # Associate guests with the check-in
                 room_booking.status = 3  # Set status to 'Checked-in'
                 room_booking.save()
+
+                # Add guests to the response
+                response_data = serializer.data
+                response_data['guests'] = [UserSerializer(User.objects.get(id=guest_id)).data for guest_id in guest_ids]
+
                 logger.info(f"Check-in successful for room_booking_id: {room_booking.id}")
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response(response_data, status=status.HTTP_201_CREATED)
             logger.error(f"Check-in failed: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("An error occurred during check-in.")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def list(self, request):
+        queryset = CheckIn.objects.all()
+        serializer = CheckInSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        queryset = CheckIn.objects.all()
+        check_in = get_object_or_404(queryset, pk=pk)
+        serializer = CheckInSerializer(check_in)
+        return Response(serializer.data)
 
     def update(self, request, pk=None):
         queryset = CheckIn.objects.all()
@@ -690,5 +713,3 @@ class PaymentViewSet(viewsets.ViewSet):
         payment = get_object_or_404(queryset, pk=pk)
         payment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
