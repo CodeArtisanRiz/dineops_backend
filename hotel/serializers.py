@@ -13,7 +13,7 @@ class RoomBookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = RoomBooking
-        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_out_date', 'checked_out_by', 'check_in_details']
+        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_details', 'check_out_date', 'checked_out_by']
 
     def get_check_out_date(self, obj):
         check_out = CheckOut.objects.filter(room_booking=obj).first()
