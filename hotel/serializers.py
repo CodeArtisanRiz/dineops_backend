@@ -7,22 +7,13 @@ from accounts.models import User
 logger = logging.getLogger(__name__)
 
 class RoomBookingSerializer(serializers.ModelSerializer):
-    check_in_date = serializers.SerializerMethodField()
-    checked_in_by = serializers.SerializerMethodField()
     check_out_date = serializers.SerializerMethodField()
     checked_out_by = serializers.SerializerMethodField()
+    check_in_details = serializers.SerializerMethodField()  # Added field
 
     class Meta:
         model = RoomBooking
-        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_date', 'checked_in_by', 'check_out_date', 'checked_out_by']
-
-    def get_check_in_date(self, obj):
-        check_in = CheckIn.objects.filter(room_booking=obj).first()
-        return check_in.check_in_date if check_in else None
-
-    def get_checked_in_by(self, obj):
-        check_in = CheckIn.objects.filter(room_booking=obj).first()
-        return check_in.checked_in_by.id if check_in else None
+        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_details', 'check_out_date', 'checked_out_by']
 
     def get_check_out_date(self, obj):
         check_out = CheckOut.objects.filter(room_booking=obj).first()
@@ -31,6 +22,10 @@ class RoomBookingSerializer(serializers.ModelSerializer):
     def get_checked_out_by(self, obj):
         check_out = CheckOut.objects.filter(room_booking=obj).first()
         return check_out.checked_out_by.id if check_out else None
+
+    def get_check_in_details(self, obj):
+        check_in = CheckIn.objects.filter(room_booking=obj).first()
+        return CheckInDetailSerializer(check_in).data if check_in else None
 
 class RoomSerializer(serializers.ModelSerializer):
     bookings = serializers.SerializerMethodField()
@@ -116,4 +111,11 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = ['id', 'billing', 'payment_date', 'amount', 'payment_method', 'status']
+
+class CheckInDetailSerializer(serializers.ModelSerializer):
+    guests = GuestUserSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CheckIn
+        fields = ['id', 'room_booking', 'check_in_date', 'checked_in_by', 'guests']
 
