@@ -83,7 +83,7 @@ class BookingSerializer(serializers.ModelSerializer):
 class GuestDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = GuestDetails
-        fields = ['coming_from', 'going_to', 'purpose', 'guest_id', 'c_form']  # Added guest_id field
+        fields = ['coming_from', 'going_to', 'purpose', 'guest_id', 'foreigner', 'c_form']
 
 class GuestUserSerializer(serializers.ModelSerializer):
     guest_details = GuestDetailsSerializer(read_only=True)  # Include GuestDetails

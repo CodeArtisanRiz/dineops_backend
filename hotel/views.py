@@ -478,6 +478,7 @@ class CheckInViewSet(viewsets.ViewSet):
                         'coming_from': request.POST.get(f'guests[{i}][coming_from]'),
                         'going_to': request.POST.get(f'guests[{i}][going_to]'),
                         'purpose': request.POST.get(f'guests[{i}][purpose]'),
+                        'foreigner': request.POST.get(f'guests[{i}][foreigner]') == 'true',  # Convert to boolean
                         'c_form': request.POST.get(f'guests[{i}][c_form]')
                     }
                     if any(guest.values()):  # Ensure at least one field is not None
@@ -533,7 +534,8 @@ class CheckInViewSet(viewsets.ViewSet):
                     defaults={
                         'coming_from': guest.get('coming_from', ''),
                         'going_to': guest.get('going_to', ''),
-                        'purpose': guest.get('purpose', '')
+                        'purpose': guest.get('purpose', ''),
+                        'foreigner': guest.get('foreigner', False)  # Ensure boolean value
                     }
                 )
 

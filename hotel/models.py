@@ -131,7 +131,8 @@ class GuestDetails(models.Model):
     going_to = models.CharField(max_length=255)
     purpose = models.CharField(max_length=255)
     guest_id = models.JSONField(blank=True, null=True)
-    c_form = models.JSONField(blank=True, null=True)
+    c_form = models.JSONField(blank=True, null=True) 
+    foreigner = models.BooleanField(default=False)
 
     def __str__(self):
         return f"GuestDetails for User ID: {self.user.id}"
