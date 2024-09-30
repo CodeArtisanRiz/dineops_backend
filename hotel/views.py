@@ -541,6 +541,15 @@ class CheckInViewSet(viewsets.ViewSet):
                 if file_key in request.FILES:
                     guest['id_card'] = request.FILES[file_key]
 
+                # Handle guest_id image upload
+                guest_id_file_key = f'guests[{i}][guest_id]'
+                if guest_id_file_key in request.FILES:
+                    guest_id_urls = handle_image_upload(request, request.user.tenant.tenant_name, 'hotel/guest_id', guest_id_file_key)
+                    guest_details.guest_id = guest_id_urls
+                else:
+                    guest_details.guest_id = []  # Ensure guest_id is an empty list if no image is uploaded
+                guest_details.save()
+
             # Create a mutable copy of request.data
             mutable_data = request.data.copy()
             mutable_data['checked_in_by'] = request.user.id
