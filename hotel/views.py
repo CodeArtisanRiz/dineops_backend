@@ -456,39 +456,71 @@ class CheckInViewSet(viewsets.ViewSet):
 
     def create(self, request):
         try:
-            booking_id = request.data.get('booking_id')
-            room_id = request.data.get('room_id')
-            check_in_date_str = request.data.get('check_in_date', timezone.now().isoformat())
-            guests_data = request.data.get('guests', [])
+            # Check if the request is JSON or form-data
+            if request.content_type == 'application/json':
+                data = request.data
+            else:
+                # Convert QueryDict to a regular dict
+                data = request.POST.dict()
+                
+                # Manually combine nested fields into a single JSON string
+                guests = []
+                i = 0
+                while True:
+                    guest = {
+                        'email': request.POST.get(f'guests[{i}][email]'),
+                        'first_name': request.POST.get(f'guests[{i}][first_name]'),
+                        'last_name': request.POST.get(f'guests[{i}][last_name]'),
+                        'phone': request.POST.get(f'guests[{i}][phone]'),
+                        'address_line_1': request.POST.get(f'guests[{i}][address_line_1]'),
+                        'address_line_2': request.POST.get(f'guests[{i}][address_line_2]'),
+                        'dob': request.POST.get(f'guests[{i}][dob]'),
+                        'coming_from': request.POST.get(f'guests[{i}][coming_from]'),
+                        'going_to': request.POST.get(f'guests[{i}][going_to]'),
+                        'purpose': request.POST.get(f'guests[{i}][purpose]')
+                    }
+                    if any(guest.values()):  # Ensure at least one field is not None
+                        guests.append(guest)
+                        i += 1
+                    else:
+                        break
+                
+                if not guests:
+                    return Response({"error": "Guests data is missing"}, status=status.HTTP_400_BAD_REQUEST)
+                
+                data['guests'] = guests
+
+            booking_id = data.get('booking_id')
+            room_id = data.get('room_id')
+            check_in_date_str = data.get('check_in_date', timezone.now().isoformat())
+            guests = data.get('guests', [])
+
+            if not guests:
+                return Response({"error": "Guests data is missing"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Parse the check_in_date string to a datetime object
             check_in_date = datetime.fromisoformat(check_in_date_str)
 
-            logger.debug(f"Attempting to check in for booking_id: {booking_id}, room_id: {room_id} at {check_in_date}")
-
             room_booking = get_object_or_404(RoomBooking, booking_id=booking_id, room_id=room_id)
-            logger.debug(f"Room booking start date: {room_booking.start_date}, end date: {room_booking.end_date}")
 
             if not (room_booking.start_date <= check_in_date <= room_booking.end_date):
-                logger.error("Check-in date is not within the booking period.")
                 raise ValidationError("Check-in date must be within the booking period.")
 
             if room_booking.status != 1:  # Ensure the room is in 'Pending' status
-                logger.error("Room is not available for check-in.")
                 raise ValidationError("Room is not available for check-in.")
 
             # Create users for guests and their details
             guest_ids = []
-            for guest in guests_data:
+            for i, guest in enumerate(guests):
                 guest_id = get_or_create_user(
-                    username= guest['phone'] or guest['email'],
+                    username=guest['phone'] or guest['email'],
                     email=guest['email'],
                     first_name=guest['first_name'],
                     last_name=guest['last_name'],
                     role='guest',
                     phone=guest['phone'],
                     address=f"{guest['address_line_1']} {guest['address_line_2']}".strip(),
-                    password= guest['dob'] or 'guest',  # Default password, can be changed later
+                    password=guest['dob'] or 'guest',  # Default password, can be changed later
                     tenant=request.user.tenant
                 )
                 guest_ids.append(guest_id)
@@ -503,11 +535,18 @@ class CheckInViewSet(viewsets.ViewSet):
                         'purpose': guest.get('purpose', '')
                     }
                 )
-                logger.debug(f"GuestDetails for {guest_user.email}: {guest_details}")
 
-            request.data['checked_in_by'] = request.user.id
-            request.data['room_booking'] = room_booking.id
-            serializer = CheckInSerializer(data=request.data)
+                # Handle file upload for each guest
+                file_key = f'guests[{i}][id_card]'
+                if file_key in request.FILES:
+                    guest['id_card'] = request.FILES[file_key]
+
+            # Create a mutable copy of request.data
+            mutable_data = request.data.copy()
+            mutable_data['checked_in_by'] = request.user.id
+            mutable_data['room_booking'] = room_booking.id
+
+            serializer = CheckInSerializer(data=mutable_data)
             if serializer.is_valid():
                 check_in = serializer.save()
                 check_in.guests.set(guest_ids)  # Associate guests with the check-in
@@ -518,12 +557,9 @@ class CheckInViewSet(viewsets.ViewSet):
                 response_data = serializer.data
                 response_data['guests'] = [GuestUserSerializer(User.objects.get(id=guest_id)).data for guest_id in guest_ids]
 
-                logger.info(f"Check-in successful for room_booking_id: {room_booking.id}")
                 return Response(response_data, status=status.HTTP_201_CREATED)
-            logger.error(f"Check-in failed: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.exception("An error occurred during check-in.")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def list(self, request):
