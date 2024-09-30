@@ -477,7 +477,8 @@ class CheckInViewSet(viewsets.ViewSet):
                         'dob': request.POST.get(f'guests[{i}][dob]'),
                         'coming_from': request.POST.get(f'guests[{i}][coming_from]'),
                         'going_to': request.POST.get(f'guests[{i}][going_to]'),
-                        'purpose': request.POST.get(f'guests[{i}][purpose]')
+                        'purpose': request.POST.get(f'guests[{i}][purpose]'),
+                        'c_form': request.POST.get(f'guests[{i}][c_form]')
                     }
                     if any(guest.values()):  # Ensure at least one field is not None
                         guests.append(guest)
@@ -548,6 +549,17 @@ class CheckInViewSet(viewsets.ViewSet):
                     guest_details.guest_id = guest_id_urls
                 else:
                     guest_details.guest_id = []  # Ensure guest_id is an empty list if no image is uploaded
+
+                # Handle c_form field
+                c_form_file_key = f'guests[{i}][c_form]'
+                if c_form_file_key in request.FILES:
+                    c_form_urls = handle_image_upload(request, request.user.tenant.tenant_name, 'hotel/c_form', c_form_file_key)
+                    guest_details.c_form = c_form_urls
+                elif 'c_form' in guest and isinstance(guest['c_form'], str):
+                    guest_details.c_form = guest['c_form']
+                else:
+                    guest_details.c_form = None
+
                 guest_details.save()
 
             # Create a mutable copy of request.data
