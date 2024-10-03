@@ -32,7 +32,7 @@ class RoomSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Room
-        fields = ['id', 'room_number', 'room_type', 'beds', 'price', 'description', 'image', 'status', 'bookings']
+        fields = ['id', 'room_number', 'room_type', 'beds', 'amenities', 'price', 'description', 'image', 'status', 'bookings']
         extra_kwargs = {'tenant': {'required': False}}
 
     def get_bookings(self, obj):
