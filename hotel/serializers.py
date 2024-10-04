@@ -107,7 +107,7 @@ class CheckOutSerializer(serializers.ModelSerializer):
 class ServiceUsageSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceUsage
-        fields = ['id', 'room_booking', 'service', 'usage_date', 'quantity', 'total_price']
+        fields = ['id', 'booking_id', 'room_id', 'service_id', 'usage_date', 'quantity', 'total_price']
 
 class BillingSerializer(serializers.ModelSerializer):
     class Meta:

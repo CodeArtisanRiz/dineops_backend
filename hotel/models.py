@@ -97,14 +97,15 @@ class CheckOut(models.Model):
         return f"CheckOut {self.id} - RoomBooking: {self.room_booking.id}"
 
 class ServiceUsage(models.Model):
-    room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
-    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    booking_id = models.ForeignKey(Booking, on_delete=models.CASCADE, null=True)
+    room_id = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
+    service_id = models.ForeignKey(Service, on_delete=models.CASCADE)
     usage_date = models.DateTimeField(default=timezone.now)
     quantity = models.IntegerField(default=1)
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"ServiceUsage {self.id} - RoomBooking: {self.room_booking.id} - Service: {self.service.name}"
+        return f"ServiceUsage {self.id} -Booking: {self.booking_.id} -RoomBooking: {self.room_.id} - Service: {self.service.id}"
 
 class Billing(models.Model):
     room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
