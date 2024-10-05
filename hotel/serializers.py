@@ -9,11 +9,12 @@ logger = logging.getLogger(__name__)
 class RoomBookingSerializer(serializers.ModelSerializer):
     check_out_date = serializers.SerializerMethodField()
     checked_out_by = serializers.SerializerMethodField()
-    check_in_details = serializers.SerializerMethodField()  # Added field
+    check_in_details = serializers.SerializerMethodField()  # Existing field
+    service_usages = serializers.SerializerMethodField()  # New field
 
     class Meta:
         model = RoomBooking
-        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_details', 'check_out_date', 'checked_out_by']
+        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_details', 'check_out_date', 'checked_out_by', 'service_usages']
 
     def get_check_out_date(self, obj):
         check_out = CheckOut.objects.filter(room_booking=obj).first()
@@ -26,6 +27,10 @@ class RoomBookingSerializer(serializers.ModelSerializer):
     def get_check_in_details(self, obj):
         check_in = CheckIn.objects.filter(room_booking=obj).first()
         return CheckInDetailSerializer(check_in).data if check_in else None
+
+    def get_service_usages(self, obj):
+        service_usages = ServiceUsage.objects.filter(room_id=obj.room.id, booking_id=obj.booking.id)
+        return ServiceUsageSerializer(service_usages, many=True).data
 
 class RoomSerializer(serializers.ModelSerializer):
     bookings = serializers.SerializerMethodField()
