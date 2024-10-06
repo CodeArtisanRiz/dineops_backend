@@ -99,6 +99,12 @@ class BookingSerializer(serializers.ModelSerializer):
             instance.guests.set(guests_data)
         return instance
 
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        # Remove the 'guests' field from the representation
+        representation.pop('guests', None)
+        return representation
+
 class GuestDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = GuestDetails
