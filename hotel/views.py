@@ -110,12 +110,17 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def list(self, request):
-        queryset = ServiceCategory.objects.all()
+        # queryset = ServiceCategory.objects.all()
+        user = request.user
+        queryset = ServiceCategory.objects.filter(tenant=user.tenant)
+        
         serializer = ServiceCategorySerializer(queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        queryset = ServiceCategory.objects.all()
+        # queryset = ServiceCategory.objects.all()
+        user = request.user
+        queryset = ServiceCategory.objects.filter(tenant=user.tenant)
         service_category = get_object_or_404(queryset, pk=pk)
         serializer = ServiceCategorySerializer(service_category)
         return Response(serializer.data)
@@ -128,7 +133,9 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
-        queryset = ServiceCategory.objects.all()
+        # queryset = ServiceCategory.objects.all()
+        user = request.user
+        queryset = ServiceCategory.objects.filter(tenant=user.tenant)
         service_category = get_object_or_404(queryset, pk=pk)
         serializer = ServiceCategorySerializer(service_category, data=request.data, partial=True)
         if serializer.is_valid():
@@ -137,7 +144,9 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):
-        queryset = ServiceCategory.objects.all()
+        # queryset = ServiceCategory.objects.all()
+        user = request.user
+        queryset = ServiceCategory.objects.filter(tenant=user.tenant)
         service_category = get_object_or_404(queryset, pk=pk)
         service_category.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -146,12 +155,16 @@ class ServiceViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def list(self, request):
-        queryset = Service.objects.all()
+        # queryset = Service.objects.all()
+        user = request.user
+        queryset = Service.objects.filter(tenant=user.tenant)
         serializer = ServiceSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        queryset = Service.objects.all()
+        # queryset = Service.objects.all()
+        user = request.user
+        queryset = Service.objects.filter(tenant=user.tenant)
         service = get_object_or_404(queryset, pk=pk)
         serializer = ServiceSerializer(service)
         return Response(serializer.data)
@@ -164,7 +177,9 @@ class ServiceViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
-        queryset = Service.objects.all()
+        # queryset = Service.objects.all()
+        user = request.user
+        queryset = Service.objects.filter(tenant=user.tenant)
         service = get_object_or_404(queryset, pk=pk)
         serializer = ServiceSerializer(service, data=request.data, partial=True)
         if serializer.is_valid():
@@ -173,7 +188,9 @@ class ServiceViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):
-        queryset = Service.objects.all()
+        # queryset = Service.objects.all()
+        user = request.user
+        queryset = Service.objects.filter(tenant=user.tenant)
         service = get_object_or_404(queryset, pk=pk)
         service.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
