@@ -596,18 +596,24 @@ class CheckInViewSet(viewsets.ViewSet):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def list(self, request):
-        queryset = CheckIn.objects.all()
+        # queryset = CheckIn.objects.all()
+        user = request.user
+        queryset = CheckIn.objects.filter(tenant=user.tenant)
         serializer = CheckInSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        queryset = CheckIn.objects.all()
+        # queryset = CheckIn.objects.all()
+        user = request.user
+        queryset = CheckIn.objects.filter(tenant=user.tenant)
         check_in = get_object_or_404(queryset, pk=pk)
         serializer = CheckInSerializer(check_in)
         return Response(serializer.data)
 
     def update(self, request, pk=None):
-        queryset = CheckIn.objects.all()
+        # queryset = CheckIn.objects.all()
+        user = request.user
+        queryset = CheckIn.objects.filter(tenant=user.tenant)
         check_in = get_object_or_404(queryset, pk=pk)
         serializer = CheckInSerializer(check_in, data=request.data, partial=True)
         if serializer.is_valid():
@@ -616,7 +622,9 @@ class CheckInViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):
-        queryset = CheckIn.objects.all()
+        # queryset = CheckIn.objects.all()
+        user = request.user
+        queryset = CheckIn.objects.filter(tenant=user.tenant)
         check_in = get_object_or_404(queryset, pk=pk)
         check_in.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -625,12 +633,16 @@ class CheckOutViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
     def list(self, request):
-        queryset = CheckOut.objects.all()
+        # queryset = CheckOut.objects.all()
+        user = request.user
+        queryset = CheckOut.objects.filter(tenant=user.tenant)
         serializer = CheckOutSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        queryset = CheckOut.objects.all()
+        # queryset = CheckOut.objects.all()
+        user = request.user
+        queryset = CheckOut.objects.filter(tenant=user.tenant)
         check_out = get_object_or_404(queryset, pk=pk)
         serializer = CheckOutSerializer(check_out)
         return Response(serializer.data)
@@ -673,7 +685,9 @@ class CheckOutViewSet(viewsets.ViewSet):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, pk=None):
-        queryset = CheckOut.objects.all()
+        # queryset = CheckOut.objects.all()
+        user = request.user
+        queryset = CheckOut.objects.filter(tenant=user.tenant)
         check_out = get_object_or_404(queryset, pk=pk)
         serializer = CheckOutSerializer(check_out, data=request.data, partial=True)
         if serializer.is_valid():
@@ -682,7 +696,9 @@ class CheckOutViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):
-        queryset = CheckOut.objects.all()
+        # queryset = CheckOut.objects.all()
+        user = request.user
+        queryset = CheckOut.objects.filter(tenant=user.tenant)
         check_out = get_object_or_404(queryset, pk=pk)
         check_out.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
