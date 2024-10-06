@@ -73,13 +73,18 @@ class UserSerializer(serializers.ModelSerializer):
 class BookingSerializer(serializers.ModelSerializer):
     rooms = RoomBookingSerializer(source='roombooking_set', many=True, read_only=True)
     guests = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True)
+    guest_detail = serializers.SerializerMethodField()  # New field for full user object
 
     class Meta:
         model = Booking
-        fields = ['id', 'booking_date', 'status', 'total_amount', 'tenant', 'guests', 'rooms', 'id_card']
+        fields = ['id', 'booking_date', 'status', 'total_amount', 'tenant', 'guests', 'guest_detail', 'rooms', 'id_card']
         extra_kwargs = {
             'id_card': {'required': False, 'allow_null': True}
         }
+
+    def get_guest_detail(self, obj):
+        # Return the full user object for each guest
+        return UserSerializer(obj.guests.all(), many=True).data
 
     def create(self, validated_data):
         guests_data = validated_data.pop('guests', [])
