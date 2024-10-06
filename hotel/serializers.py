@@ -3,6 +3,8 @@ from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckI
 import logging
 from datetime import date
 from accounts.models import User
+from order.models import Order
+from order.serializers import OrderSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +13,11 @@ class RoomBookingSerializer(serializers.ModelSerializer):
     checked_out_by = serializers.SerializerMethodField()
     check_in_details = serializers.SerializerMethodField()  # Existing field
     service_usages = serializers.SerializerMethodField()  # New field
+    orders = serializers.SerializerMethodField()  # New field to include orders
 
     class Meta:
         model = RoomBooking
-        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_details', 'check_out_date', 'checked_out_by', 'service_usages']
+        fields = ['id', 'booking', 'room', 'start_date', 'end_date', 'status', 'is_active', 'check_in_details', 'check_out_date', 'checked_out_by', 'service_usages', 'orders']
 
     def get_check_out_date(self, obj):
         check_out = CheckOut.objects.filter(room_booking=obj).first()
@@ -31,6 +34,12 @@ class RoomBookingSerializer(serializers.ModelSerializer):
     def get_service_usages(self, obj):
         service_usages = ServiceUsage.objects.filter(room_id=obj.room.id, booking_id=obj.booking.id)
         return ServiceUsageSerializer(service_usages, many=True).data
+
+    def get_orders(self, obj):
+        # Ensure that the filtering is done using the correct fields
+        orders = Order.objects.filter(booking_id=obj.booking.id, room_id=obj.room.id)
+        # , room_id=obj.room.id
+        return OrderSerializer(orders, many=True).data
 
 class RoomSerializer(serializers.ModelSerializer):
     bookings = serializers.SerializerMethodField()
