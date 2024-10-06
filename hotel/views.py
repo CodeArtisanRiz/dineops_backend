@@ -293,18 +293,24 @@ class BookingViewSet(viewsets.ViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request):
-        queryset = Booking.objects.all()
+        # queryset = Booking.objects.all()
+        user = request.user
+        queryset = Booking.objects.filter(tenant=user.tenant)  # Filter by current tenant
         serializer = BookingSerializer(queryset, many=True)
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
-        queryset = Booking.objects.all()
+        # queryset = Booking.objects.all()
+        user = request.user
+        queryset = Booking.objects.filter(tenant=user.tenant)
         booking = get_object_or_404(queryset, pk=pk)
         serializer = BookingSerializer(booking)
         return Response(serializer.data)
 
     def update(self, request, pk=None):
-        queryset = Booking.objects.all()
+        # queryset = Booking.objects.all()
+        user = request.user
+        queryset = Booking.objects.filter(tenant=user.tenant)
         booking = get_object_or_404(queryset, pk=pk)
         old_status = booking.status
         new_status = request.data.get('status', old_status)
@@ -357,7 +363,9 @@ class BookingViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, pk=None):
-        queryset = Booking.objects.all()
+        # queryset = Booking.objects.all()
+        user = request.user
+        queryset = Booking.objects.filter(tenant=user.tenant)
         booking = get_object_or_404(queryset, pk=pk)
         old_status = booking.status
         new_status = request.data.get('status', old_status)
@@ -410,7 +418,9 @@ class BookingViewSet(viewsets.ViewSet):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def destroy(self, request, pk=None):
-        queryset = Booking.objects.all()
+        # queryset = Booking.objects.all()
+        user = request.user
+        queryset = Booking.objects.filter(tenant=user.tenant)
         booking = get_object_or_404(queryset, pk=pk)
         booking.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
