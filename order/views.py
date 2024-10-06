@@ -12,6 +12,7 @@ from .serializers import OrderSerializer
 import logging
 from utils.get_or_create_user import get_or_create_user
 from django.utils import timezone
+from hotel.models import Room, Booking  # Import Room and Booking models
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -31,34 +32,27 @@ class OrderViewSet(viewsets.ModelViewSet):
         data = request.data
         tenant = user.tenant
 
-        phone = data.get('phone')
-        email = data.get('email')
-        first_name = data.get('first_name', '')
-        last_name = data.get('last_name', '')
-        address_line_1 = data.get('address_line_1', '')
-        address_line_2 = data.get('address_line_2', '')
-        dob = data.get('dob', None)
-        address = f"{address_line_1} {address_line_2}".strip()
-
         try:
             with transaction.atomic():
+                logger.debug(f"Creating order for user: {user.username}, data: {data}")
+
                 # Use get_or_create_user to get or create the customer
                 customer_id = get_or_create_user(
-                    username= phone or email,
-                    email=email,
-                    first_name=first_name,
-                    last_name=last_name,
+                    username=data.get('phone') or data.get('email'),
+                    email=data.get('email'),
+                    first_name=data.get('first_name', ''),
+                    last_name=data.get('last_name', ''),
                     role='customer',
-                    phone=phone,
-                    address=address,
+                    phone=data.get('phone'),
+                    address=f"{data.get('address_line_1', '')} {data.get('address_line_2', '')}".strip(),
                     password='customer',
                     tenant=tenant
                 )
                 customer = User.objects.get(id=customer_id)
 
                 order_type = data.get('order_type')
+                logger.debug(f"Order type: {order_type}")
 
-                # Validate order_type and table/room requirements
                 if order_type == 'dine_in':
                     table_ids = data.get('tables', [])
                     if not table_ids:
@@ -71,15 +65,26 @@ class OrderViewSet(viewsets.ModelViewSet):
                             if table.occupied:
                                 return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
                             table.occupied = True
-                            table.order = None  # Clear any existing order
                             table.save()
                             tables.append(table)
                         except Table.DoesNotExist:
                             return Response({"error": f"Table {table_id} does not exist."}, status=status.HTTP_400_BAD_REQUEST)
+                    
+                    room = None
+                    booking = None
+
                 elif order_type == 'hotel':
-                    return Response({"error": "Hotel is not yet implemented."}, status=status.HTTP_400_BAD_REQUEST)
-                else:
+                    room_id = data.get('room_id')
+                    booking_id = data.get('booking_id')
+                    logger.debug(f"Room ID: {room_id}, Booking ID: {booking_id}")
+
+                    room = get_object_or_404(Room, pk=room_id)
+                    booking = get_object_or_404(Booking, pk=booking_id)
+                    logger.debug(f"Room: {room}, Booking: {booking}")
+
                     tables = []
+                else:
+                    return Response({"error": "Invalid order type."}, status=status.HTTP_400_BAD_REQUEST)
 
                 # Create order
                 order = Order.objects.create(
@@ -92,11 +97,13 @@ class OrderViewSet(viewsets.ModelViewSet):
                     status='in_progress',
                     order_type=order_type,
                     payment_method=data.get('payment_method'),
-                    quantity=data.get('quantity', [])  # Ensure quantity is set
+                    quantity=data.get('quantity', []),
+                    room_id=room,
+                    booking_id=booking
                 )
                 order.food_items.set(data.get('food_items'))
-                order.tables.set(tables)  # Set the list of tables
-                order.kot_count = data.get('kot_count', 0)  # Ensure kot_count is set
+                order.tables.set(tables)
+                order.kot_count = data.get('kot_count', 0)
 
                 # Update tables with the order ID
                 for table in tables:

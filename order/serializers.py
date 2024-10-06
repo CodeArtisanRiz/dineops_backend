@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Order, FoodItem, Table
+from hotel.models import Room, Booking  # Import Room and Booking models
 
 class OrderSerializer(serializers.ModelSerializer):
     food_items = serializers.PrimaryKeyRelatedField(many=True, queryset=FoodItem.objects.all())
@@ -8,8 +9,9 @@ class OrderSerializer(serializers.ModelSerializer):
         required=True
     )
     phone = serializers.SerializerMethodField()
-    # table_numbers = serializers.SerializerMethodField()  # Update to handle multiple tables
     customer = serializers.SerializerMethodField()  # Add this line
+    room_id = serializers.PrimaryKeyRelatedField(queryset=Room.objects.all(), required=False, allow_null=True)  # New field
+    booking_id = serializers.PrimaryKeyRelatedField(queryset=Booking.objects.all(), required=False, allow_null=True)  # Updated field
 
     class Meta:
         model = Order
@@ -34,8 +36,26 @@ class OrderSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, data):
+        order_type = data.get('order_type')
+        
+        if order_type == 'dine_in':
+            if not data.get('tables'):
+                raise serializers.ValidationError("At least one table is required for dine-in orders.")
+            if data.get('room_id') or data.get('booking_id'):
+                raise serializers.ValidationError("Room and booking should be null for dine-in orders.")
+        
+        elif order_type == 'hotel':
+            if not data.get('room_id') or not data.get('booking_id'):
+                raise serializers.ValidationError("Room ID and Booking ID are required for hotel orders.")
+            if data.get('tables'):
+                raise serializers.ValidationError("Tables should be null for hotel orders.")
+        
+        else:
+            raise serializers.ValidationError("Invalid order type.")
+
         if len(data['food_items']) != len(data['quantity']):
             raise serializers.ValidationError("The number of items and quantities must match.")
+        
         return data
 
     def create(self, validated_data):

@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from accounts.models import Tenant
 from foods.models import FoodItem, Table
-from hotel.models import Room
+from hotel.models import Room, Booking
 
 User = get_user_model()
 
@@ -36,7 +36,7 @@ class Order(models.Model):
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='orders')
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     order_type = models.CharField(max_length=20, choices=ORDER_CHOICES, default='dine_in')
-    tables = models.ManyToManyField(Table, blank=True, related_name='orders')  # Add this line
+    tables = models.ManyToManyField(Table, blank=True, related_name='orders', null=True)  # Add this line
     # room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
     payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -53,7 +53,8 @@ class Order(models.Model):
 
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)
-    room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    room_id = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True)  # New field
+    booking_id = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True)  # Updated field
 
     def __str__(self):
-        return f"Order {self.id} by {self.customer.username if self.customer else 'unknown'}"
+        return f"Order {self.id} - {self.status}"
