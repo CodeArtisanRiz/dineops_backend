@@ -11,15 +11,18 @@ class Room(models.Model):
         ('maintenance', 'Maintenance'),
         ('cleaning', 'Cleaning'),
     ]
-    room_number = models.CharField(max_length=10, unique=True)
-    room_type = models.CharField(max_length=50, default='')  # Added field
-    beds = models.CharField(max_length=50, default='')  # Added field
+    room_number = models.CharField(max_length=10)
+    room_type = models.CharField(max_length=50, default='')
+    beds = models.CharField(max_length=50, default='')
     amenities = models.JSONField(default=list, blank=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
-    description = models.TextField(blank=True)  # Added field
-    image = models.JSONField(default=list, blank=True)  # Added field
+    description = models.TextField(blank=True)
+    image = models.JSONField(default=list, blank=True)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='available')
+
+    class Meta:
+        unique_together = ('room_number', 'tenant')  # Ensure room_number is unique per tenant
 
     def __str__(self):
         return f"{self.room_number} - {self.room_type}"

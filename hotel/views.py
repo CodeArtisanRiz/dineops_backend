@@ -61,8 +61,15 @@ class RoomViewSet(viewsets.ViewSet):
 
         serializer = RoomSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(tenant=user.tenant if not user.is_superuser else tenant)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save(tenant=user.tenant if not user.is_superuser else tenant)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except IntegrityError:
+                room_number = request.data.get('room_number')
+                return Response(
+                    {"error": f"Room number {room_number} already exists for this tenant."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
