@@ -278,7 +278,7 @@ class BookingViewSet(viewsets.ViewSet):
                 room_id=room_id,
                 start_date__lt=end_date,
                 end_date__gt=start_date,
-                status__in=[1, 2, 3],  # Pending, Confirmed, Checked-in
+                booking__status__in=['pending', 'confirmed', 'checked_in'],
                 is_active=True
             )
 
@@ -312,7 +312,6 @@ class BookingViewSet(viewsets.ViewSet):
                         room_id=room_id,
                         start_date=start_date,
                         end_date=end_date,
-                        status=1,  # Set initial status to 'Pending'
                         is_active=True
                     )
                     room_booking.save()
@@ -347,6 +346,13 @@ class BookingViewSet(viewsets.ViewSet):
         old_status = booking.status
         new_status = request.data.get('status', old_status)
 
+        # Prevent status from being set to 'checked_in' or 'checked_out'
+        if new_status in ['checked_in', 'checked_out']:
+            return Response(
+                {"error": "Status cannot be updated to Checked-in or Checked-out directly."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         data = request.data.dict()  # Convert QueryDict to a regular dict
 
         # Handle ID card image upload
@@ -361,35 +367,11 @@ class BookingViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             booking = serializer.save()
 
-            # Handle status change to Cancelled
-            if old_status != 3 and new_status == 3:
+            # Update is_active based on status
+            if new_status in ['cancelled', 'completed', 'no_show']:
                 RoomBooking.objects.filter(booking=booking).update(is_active=False)
-
-            # Handle status change from Cancelled to Confirmed
-            if old_status == 3 and new_status == 2:
-                rooms_data = RoomBooking.objects.filter(booking=booking)
-                for room_booking in rooms_data:
-                    room_id = room_booking.room_id
-                    start_date = room_booking.start_date
-                    end_date = room_booking.end_date
-
-                    overlapping_bookings = RoomBooking.objects.filter(
-                        room_id=room_id,
-                        start_date__lt=end_date,
-                        end_date__gt=start_date,
-                        status__in=[1, 2, 3],  # Pending, Confirmed, Checked-in
-                        is_active=True
-                    ).exclude(booking=booking)
-
-                    if overlapping_bookings.exists():
-                        return Response(
-                            {"error": f"Room {room_id} is not available from {start_date} to {end_date}"},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-
-                    room_booking.is_active = True
-                    room_booking.status = 2  # Set status to 'Confirmed'
-                    room_booking.save()
+            elif new_status in ['pending', 'confirmed', 'checked_in', 'checked_out']:
+                RoomBooking.objects.filter(booking=booking).update(is_active=True)
 
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -400,6 +382,13 @@ class BookingViewSet(viewsets.ViewSet):
         old_status = booking.status
         new_status = request.data.get('status', old_status)
 
+        # Prevent status from being set to 'checked_in' or 'checked_out'
+        if new_status in ['checked_in', 'checked_out']:
+            return Response(
+                {"error": "Status cannot be updated to Checked-in or Checked-out directly."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         data = request.data.dict()  # Convert QueryDict to a regular dict
 
         # Handle ID card image upload
@@ -414,35 +403,11 @@ class BookingViewSet(viewsets.ViewSet):
         if serializer.is_valid():
             booking = serializer.save()
 
-            # Handle status change to Cancelled
-            if old_status != 3 and new_status == 3:
+            # Update is_active based on status
+            if new_status in ['cancelled', 'completed', 'no_show']:
                 RoomBooking.objects.filter(booking=booking).update(is_active=False)
-
-            # Handle status change from Cancelled to Confirmed
-            if old_status == 3 and new_status == 2:
-                rooms_data = RoomBooking.objects.filter(booking=booking)
-                for room_booking in rooms_data:
-                    room_id = room_booking.room_id
-                    start_date = room_booking.start_date
-                    end_date = room_booking.end_date
-
-                    overlapping_bookings = RoomBooking.objects.filter(
-                        room_id=room_id,
-                        start_date__lt=end_date,
-                        end_date__gt=start_date,
-                        status__in=[1, 2, 3],  # Pending, Confirmed, Checked-in
-                        is_active=True
-                    ).exclude(booking=booking)
-
-                    if overlapping_bookings.exists():
-                        return Response(
-                            {"error": f"Room {room_id} is not available from {start_date} to {end_date}"},
-                            status=status.HTTP_400_BAD_REQUEST
-                        )
-
-                    room_booking.is_active = True
-                    room_booking.status = 2  # Set status to 'Confirmed'
-                    room_booking.save()
+            elif new_status in ['pending', 'confirmed', 'checked_in', 'checked_out']:
+                RoomBooking.objects.filter(booking=booking).update(is_active=True)
 
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -496,7 +461,7 @@ class CheckInViewSet(viewsets.ViewSet):
         user = self.request.user
         if user.is_superuser:
             return CheckIn.objects.all()
-        return CheckIn.objects.filter(tenant=user.tenant)
+        return CheckIn.objects.filter(room_booking__booking__tenant=user.tenant)
 
     def create(self, request):
         try:
@@ -552,8 +517,12 @@ class CheckInViewSet(viewsets.ViewSet):
             if not (room_booking.start_date <= check_in_date <= room_booking.end_date):
                 raise ValidationError("Check-in date must be within the booking period.")
 
-            if room_booking.status != 1:  # Ensure the room is in 'Pending' status
-                raise ValidationError("Room is not available for check-in.")
+            # Check the status of the associated booking
+            if room_booking.booking.status not in ['pending', 'confirmed']:  # Allow only if status is Pending or Confirmed
+                return Response(
+                    {"error": f"Cannot check-in. Booking status is {room_booking.booking.get_status_display()}."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             # Create users for guests and their details
             guest_ids = []
@@ -617,8 +586,8 @@ class CheckInViewSet(viewsets.ViewSet):
             if serializer.is_valid():
                 check_in = serializer.save()
                 check_in.guests.set(guest_ids)  # Associate guests with the check-in
-                room_booking.status = 3  # Set status to 'Checked-in'
-                room_booking.save()
+                room_booking.booking.status = 'checked_in'  # Set booking status to 'Checked-in'
+                room_booking.booking.save()
 
                 # Add guests to the response
                 response_data = serializer.data
@@ -693,7 +662,7 @@ class CheckOutViewSet(viewsets.ViewSet):
                 logger.error("Check-out date is not within the booking period.")
                 raise ValidationError("Check-out date must be within the booking period.")
 
-            if room_booking.status != 3:  # Ensure the room is in 'Checked-in' status
+            if room_booking.status != 'checked_in':  # Ensure the room is in 'Checked-in' status
                 logger.error("Room is not available for check-out.")
                 raise ValidationError("Room is not available for check-out.")
 
@@ -702,7 +671,7 @@ class CheckOutViewSet(viewsets.ViewSet):
             serializer = CheckOutSerializer(data=request.data)
             if serializer.is_valid():
                 check_out = serializer.save()
-                room_booking.status = 4  # Set status to 'Checked-out'
+                room_booking.status = 'checked_out'  # Set status to 'Checked-out'
                 room_booking.save()
                 logger.info(f"Check-out successful for room_booking_id: {room_booking.id}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)

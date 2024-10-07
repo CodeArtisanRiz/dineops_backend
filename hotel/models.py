@@ -49,16 +49,16 @@ class Service(models.Model):
 
 class Booking(models.Model):
     STATUS_CHOICES = [
-        (1, 'Pending'),
-        (2, 'Confirmed'),
-        (3, 'Cancelled'),
-        (4, 'Checked-in'),
-        (5, 'Checked-out'),
-        (6, 'No-show')
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+        ('checked_in', 'Checked-in'),
+        ('checked_out', 'Checked-out'),
+        ('no_show', 'No-show')
     ]
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
     booking_date = models.DateTimeField(default=timezone.now, null=True, blank=True)
-    status = models.IntegerField(choices=STATUS_CHOICES, default=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     guests = models.ManyToManyField(User, related_name='bookings', blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     id_card = models.JSONField(blank=True, null=True)  # Added field
@@ -67,18 +67,10 @@ class Booking(models.Model):
         return f"Booking {self.id} - Tenant: {self.tenant} - Status: {self.get_status_display()}"
 
 class RoomBooking(models.Model):
-    STATUS_CHOICES = [
-        (1, 'Pending'),
-        (2, 'Confirmed'),
-        (3, 'Checked-in'),
-        (4, 'Checked-out'),
-        (5, 'Cancelled')
-    ]
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE)
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    status = models.IntegerField(choices=STATUS_CHOICES, default=1)
     is_active = models.BooleanField(default=True)  # Added field
 
     def __str__(self):
