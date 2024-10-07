@@ -219,14 +219,16 @@ class BookingViewSet(viewsets.ViewSet):
             data = request.data
             rooms_data = data.get('rooms', [])
 
-        # Verify that all room IDs exist
+        # Verify that all room IDs exist and belong to the current tenant
         room_ids = [room_data.get('room') for room_data in rooms_data]
-        existing_room_ids = set(Room.objects.filter(id__in=room_ids).values_list('id', flat=True))
+        existing_room_ids = set(
+            Room.objects.filter(id__in=room_ids, tenant=user.tenant).values_list('id', flat=True)
+        )
         non_existent_rooms = [room_id for room_id in room_ids if room_id not in existing_room_ids]
 
         if non_existent_rooms:
             return Response(
-                {"error": f"Room(s) with ID(s) {non_existent_rooms} do not exist."},
+                {"error": f"Room(s) with ID(s) {non_existent_rooms} does not exist."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
