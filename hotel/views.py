@@ -243,7 +243,7 @@ class BookingViewSet(viewsets.ViewSet):
         address = f"{address_line_1} {address_line_2}".strip()
 
         guest_id = get_or_create_user(
-            username=email,
+            username=phone or email,
             email=email,
             first_name=first_name,
             last_name=last_name,
