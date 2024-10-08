@@ -68,7 +68,7 @@ class ServiceSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'address']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'address_line_1', 'address_line_2']
 
 class BookingSerializer(serializers.ModelSerializer):
     rooms = RoomBookingSerializer(source='roombooking_set', many=True, read_only=True)
@@ -115,7 +115,7 @@ class GuestUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'address', 'guest_details']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'address_line_1', 'address_line_2', 'guest_details']
 
 class CheckInSerializer(serializers.ModelSerializer):
     guests = GuestUserSerializer(many=True, read_only=True)  # Use GuestUserSerializer

@@ -3,7 +3,7 @@ from django.core.exceptions import ObjectDoesNotExist
 
 UserModel = get_user_model()
 
-def get_or_create_user(username, email, first_name, last_name, role, phone, address, password, tenant):
+def get_or_create_user(username, email, first_name, last_name, role, phone, address_line_1, address_line_2, password, tenant):
     try:
         user = UserModel.objects.get(username=username)
         # Update user details if they are incorrect
@@ -12,7 +12,8 @@ def get_or_create_user(username, email, first_name, last_name, role, phone, addr
         user.last_name = last_name
         user.role = role
         user.phone = phone
-        user.address = address
+        user.address_line_1 = address_line_1
+        user.address_line_2 = address_line_2
         user.tenant = tenant
         if password:
             user.set_password(password)
@@ -26,7 +27,8 @@ def get_or_create_user(username, email, first_name, last_name, role, phone, addr
             last_name=last_name,
             role=role,
             phone=phone,
-            address=address,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
             tenant=tenant
         )
         if not password:

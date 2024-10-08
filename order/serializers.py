@@ -32,7 +32,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "first_name": obj.customer.first_name,
             "last_name": obj.customer.last_name,
             "phone": obj.customer.phone,
-            "address": obj.customer.address,
+            "address_line_1": obj.customer.address_line_1,
+            "address_line_2": obj.customer.address_line_2,
         }
 
     def validate(self, data):

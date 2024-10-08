@@ -44,7 +44,9 @@ class OrderViewSet(viewsets.ModelViewSet):
                     last_name=data.get('last_name', ''),
                     role='customer',
                     phone=data.get('phone'),
-                    address=f"{data.get('address_line_1', '')} {data.get('address_line_2', '')}".strip(),
+                    # address=f"{data.get('address_line_1', '')} {data.get('address_line_2', '')}".strip(),
+                    address_line_1=data.get('address_line_1', ''),
+                    address_line_2=data.get('address_line_2', ''),
                     password='customer',
                     tenant=tenant
                 )
@@ -136,7 +138,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 last_name = data.get('last_name', order.customer.last_name)
                 address_line_1 = data.get('address_line_1', '')
                 address_line_2 = data.get('address_line_2', '')
-                address = f"{address_line_1} {address_line_2}".strip()
+                # address = f"{address_line_1} {address_line_2}".strip()
                 dob = data.get('dob', order.customer.dob)
 
                 customer_id = get_or_create_user(
@@ -146,7 +148,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     last_name=last_name,
                     role='customer',
                     phone=phone,
-                    address=address,
+                    address_line_1=address_line_1,
+                    address_line_2=address_line_2,
                     password=None,  # No need to update password
                     tenant=user.tenant
                 )
@@ -241,7 +244,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 last_name = data.get('last_name', order.customer.last_name)
                 address_line_1 = data.get('address_line_1', '')
                 address_line_2 = data.get('address_line_2', '')
-                address = f"{address_line_1} {address_line_2}".strip()
+                # address = f"{address_line_1} {address_line_2}".strip()
                 dob = data.get('dob', order.customer.dob)
 
                 customer_id = get_or_create_user(
@@ -251,7 +254,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     last_name=last_name,
                     role='customer',
                     phone=phone,
-                    address=address,
+                    address_line_1=address_line_1,
+                    address_line_2=address_line_2,
                     password=None,  # No need to update password
                     tenant=user.tenant
                 )

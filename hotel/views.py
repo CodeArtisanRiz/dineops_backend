@@ -240,7 +240,7 @@ class BookingViewSet(viewsets.ViewSet):
         address_line_1 = data.get('address_line_1', '')
         address_line_2 = data.get('address_line_2', '')
         dob = data.get('dob', None)
-        address = f"{address_line_1} {address_line_2}".strip()
+        # address = f"{address_line_1} {address_line_2}".strip()
 
         guest_id = get_or_create_user(
             username=phone or email,
@@ -249,7 +249,8 @@ class BookingViewSet(viewsets.ViewSet):
             last_name=last_name,
             role='guest',
             phone=phone,
-            address=address,
+            address_line_1=address_line_1,
+            address_line_2=address_line_2,
             password=data.get('password', 'guest'),
             tenant=tenant
         )
@@ -534,7 +535,9 @@ class CheckInViewSet(viewsets.ViewSet):
                     last_name=guest['last_name'],
                     role='guest',
                     phone=guest['phone'],
-                    address=f"{guest['address_line_1']} {guest['address_line_2']}".strip(),
+                    address_line_1=guest['address_line_1'],
+                    address_line_2=guest['address_line_2'],
+                    # address=f"{guest['address_line_1']} {guest['address_line_2']}".strip(),
                     password=guest['dob'] or 'guest',  # Default password, can be changed later
                     tenant=request.user.tenant
                 )
