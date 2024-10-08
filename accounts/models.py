@@ -57,7 +57,7 @@ class User(AbstractUser):
     last_name = models.CharField(max_length=30, blank=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
     phone = models.CharField(max_length=15, blank=True)
-    address = models.TextField(blank=True)
+    # address = models.TextField(blank=True)
     address_line_1 = models.TextField(blank=True, null=True)
     address_line_2 = models.TextField(blank=True, null=True)
     dob = models.DateField(null=True, blank=True)
