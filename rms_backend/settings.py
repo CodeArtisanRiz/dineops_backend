@@ -53,6 +53,10 @@ INSTALLED_APPS = [
     'rest_framework',
     # Simple JWT for token-based authentication
     'rest_framework_simplejwt',
+    # Django REST Framework Token Authentication
+    'rest_framework.authtoken',
+    # Swagger for API documentation
+    'drf_yasg',
     # Django CORS Headers for handling Cross-Origin Resource Sharing
     'corsheaders',
     # Custom accounts app for user management
@@ -65,9 +69,17 @@ INSTALLED_APPS = [
     'hotel',
 ]
 
-
-
-
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'
+        }
+    },
+    'USE_SESSION_AUTH': False,  # Disable session authentication if using JWT
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
