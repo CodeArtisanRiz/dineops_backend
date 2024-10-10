@@ -51,7 +51,13 @@ class RoomSerializer(serializers.ModelSerializer):
 
     def get_bookings(self, obj):
         active_bookings = obj.roombooking_set.filter(is_active=True)
-        return RoomBookingSerializer(active_bookings, many=True).data
+        return [
+            {
+                "booking": RoomBookingSerializer(booking).data,
+                "user": UserSerializer(booking.booking.guests.first()).data if booking.booking.guests.exists() else None
+            }
+            for booking in active_bookings
+        ]
 
 class ServiceCategorySerializer(serializers.ModelSerializer):
     class Meta:
