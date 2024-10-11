@@ -17,5 +17,11 @@ router.register(r'payments', PaymentViewSet, basename='payment')
 urlpatterns = [
     path('', include(router.urls)),
     # path('billing/<int:booking_id>/', BillingDetailView.as_view(), name='billing-detail'),
+    
     path('billing/<int:booking_id>/', BillingView.as_view(), name='billing'),
+    # Path for creating a billing entry
+    # path('billing/create/<int:booking_id>/', BillingView.as_view(), name='billing-create'),
+    
+    # Path for deleting a billing entry
+    path('billing/delete/<int:billing_id>/', BillingView.as_view(), name='billing-delete'),
 ]

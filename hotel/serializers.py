@@ -136,14 +136,19 @@ class CheckOutSerializer(serializers.ModelSerializer):
         fields = ['id', 'room_booking', 'check_out_date', 'checked_out_by']
 
 class ServiceUsageSerializer(serializers.ModelSerializer):
+    service_name = serializers.SerializerMethodField()  # New field to include service name
+
     class Meta:
         model = ServiceUsage
-        fields = ['id', 'booking_id', 'room_id', 'service_id', 'usage_date', 'quantity', 'total_price']
+        fields = ['id', 'booking_id', 'room_id', 'service_id', 'service_name', 'usage_date', 'quantity', 'total_price']
+
+    def get_service_name(self, obj):
+        return obj.service_id.name  # Fetch the name of the service
 
 class BillingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Billing
-        fields = ['id', 'room_booking', 'billing_date', 'amount', 'status', 'details']
+        fields = ['id', 'booking', 'room_booking', 'billing_date', 'amount', 'status', 'details']
 
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:

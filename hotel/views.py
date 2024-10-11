@@ -522,7 +522,7 @@ class CheckInViewSet(viewsets.ViewSet):
                 raise ValidationError("Check-in date must be within the booking period.")
 
             # Check the status of the associated booking
-            if room_booking.booking.status not in ['pending', 'confirmed']:  # Allow only if status is Pending or Confirmed
+            if room_booking.booking.status not in ['pending', 'confirmed', 'partial_checked_in']:  # Allow only if status is Pending or Confirmed
                 return Response(
                     {"error": f"Cannot check-in. Booking status is {room_booking.booking.get_status_display()}."},
                     status=status.HTTP_400_BAD_REQUEST
@@ -540,7 +540,6 @@ class CheckInViewSet(viewsets.ViewSet):
                     phone=guest['phone'],
                     address_line_1=guest['address_line_1'],
                     address_line_2=guest['address_line_2'],
-                    # address=f"{guest['address_line_1']} {guest['address_line_2']}".strip(),
                     password=guest['dob'] or 'guest',  # Default password, can be changed later
                     tenant=request.user.tenant
                 )
@@ -592,7 +591,19 @@ class CheckInViewSet(viewsets.ViewSet):
             if serializer.is_valid():
                 check_in = serializer.save()
                 check_in.guests.set(guest_ids)  # Associate guests with the check-in
-                room_booking.booking.status = 'checked_in'  # Set booking status to 'Checked-in'
+                # room_booking.booking.status = 'checked_in'  # Set booking status to 'Checked-in'
+
+                # Check the status of all room bookings for this booking
+                all_room_bookings = RoomBooking.objects.filter(booking=room_booking.booking)
+                all_checked_in = all(
+                    CheckIn.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
+
+                # Update booking status based on room check-in status
+                if all_checked_in:
+                    room_booking.booking.status = 'checked_in'
+                else:
+                    room_booking.booking.status = 'partial_checked_in'
                 room_booking.booking.save()
 
                 # Add guests to the response
@@ -793,6 +804,19 @@ class PaymentViewSet(viewsets.ViewSet):
 class BillingView(APIView):
     def post(self, request, booking_id):
         booking = get_object_or_404(Booking, id=booking_id)
+
+        # Check if a billing entry already exists for this booking
+        # if Billing.objects.filter(booking=booking).exists():
+        #     return Response({"error": "Billing entry already exists for this booking."}, status=status.HTTP_400_BAD_REQUEST)
+
+        existing_billing = Billing.objects.filter(booking=booking).first()
+        if existing_billing:
+            return Response(
+                {"error": f"Billing with ID {existing_billing.id} already exists for this booking ID {booking_id}."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        
         room_bookings = RoomBooking.objects.filter(booking=booking)
         
         if not room_bookings.exists():
@@ -814,7 +838,7 @@ class BillingView(APIView):
 
             # Fetch services and orders
             services = ServiceUsage.objects.filter(room_id=room_booking)
-            service_data = [{"id": service.id, "price": float(service.total_price)} for service in services]
+            service_data = [{"id": service.id, "name": service.service_id.name,  "price": float(service.total_price)} for service in services]
 
             orders = Order.objects.filter(room_id=room_booking.room, booking_id=booking)
             order_data = [{"id": order.id, "total": float(order.total_price)} for order in orders]
@@ -834,6 +858,7 @@ class BillingView(APIView):
 
         # Create a new Billing entry
         billing = Billing.objects.create(
+            booking=booking,
             room_booking=room_bookings.first(),  # Assuming one billing per booking
             amount=total_amount,
             details={"rooms": rooms_data}
@@ -841,8 +866,29 @@ class BillingView(APIView):
 
         response_data = {
             "id": billing.id,
+            "booking": booking.id,
             "rooms": rooms_data,
             "total": float(total_amount)
         }
 
         return Response(response_data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request, billing_id):
+        # Retrieve the billing entry
+        billing = get_object_or_404(Billing, id=billing_id)
+        
+        # Delete the billing entry
+        billing.delete()
+        
+        # Return a success response
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def get(self, request, billing_id):
+        # Retrieve the billing entry
+        billing = get_object_or_404(Billing, id=billing_id)
+        
+        # Serialize the billing entry
+        serializer = BillingSerializer(billing)
+        
+        # Return the serialized data
+        return Response(serializer.data, status=status.HTTP_200_OK)
