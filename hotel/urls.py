@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RoomViewSet, ServiceCategoryViewSet, ServiceViewSet, BookingViewSet, RoomBookingViewSet, CheckInViewSet, CheckOutViewSet, ServiceUsageViewSet, BillingViewSet, PaymentViewSet
+from .views import RoomViewSet, ServiceCategoryViewSet, ServiceViewSet, BookingViewSet, RoomBookingViewSet, CheckInViewSet, CheckOutViewSet, ServiceUsageViewSet, PaymentViewSet, BillingView
 
 router = DefaultRouter()
 router.register(r'rooms', RoomViewSet, basename='room')
@@ -11,9 +11,11 @@ router.register(r'room-bookings', RoomBookingViewSet, basename='roombooking')
 router.register(r'checkin', CheckInViewSet, basename='checkin')
 router.register(r'checkout', CheckOutViewSet, basename='checkout')
 router.register(r'service-usages', ServiceUsageViewSet, basename='serviceusage')
-router.register(r'billings', BillingViewSet, basename='billing')
+# router.register(r'billings', BillingViewSet, basename='billing')
 router.register(r'payments', PaymentViewSet, basename='payment')
 
 urlpatterns = [
     path('', include(router.urls)),
+    # path('billing/<int:booking_id>/', BillingDetailView.as_view(), name='billing-detail'),
+    path('billing/<int:booking_id>/', BillingView.as_view(), name='billing'),
 ]

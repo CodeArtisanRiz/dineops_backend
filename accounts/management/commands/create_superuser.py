@@ -39,7 +39,7 @@ class Command(BaseCommand):
         email = input('Enter superuser email: ')
         password = input('Enter superuser password: ')
         phone = input('Enter superuser phone (optional): ')
-        address = input('Enter superuser address (optional): ')
+        # address = input('Enter superuser address (optional): ')
 
         # Create a new superuser with the provided information
         try:
@@ -48,7 +48,7 @@ class Command(BaseCommand):
                 email=email,
                 password=password,
                 phone=phone,
-                address=address,
+                # address=address,
                 role='superuser',  # Set the role to 'superuser'
             )
 

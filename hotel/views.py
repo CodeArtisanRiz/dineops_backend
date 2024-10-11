@@ -9,8 +9,11 @@ from django.db import IntegrityError
 from django.utils import timezone
 import json
 from datetime import datetime
+from rest_framework.views import APIView
+from decimal import Decimal
 
 from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment, GuestDetails
+from order.models import Order
 from accounts.models import Tenant, User
 from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, BillingSerializer, PaymentSerializer, UserSerializer, GuestUserSerializer, CheckInDetailSerializer
 from utils.image_upload import handle_image_upload
@@ -658,6 +661,7 @@ class CheckOutViewSet(viewsets.ViewSet):
 
             logger.debug(f"Attempting to check out for booking_id: {booking_id}, room_id: {room_id} at {check_out_date}")
 
+            booking = get_object_or_404(Booking, id=booking_id)
             room_booking = get_object_or_404(RoomBooking, booking_id=booking_id, room_id=room_id)
             logger.debug(f"Room booking start date: {room_booking.start_date}, end date: {room_booking.end_date}")
 
@@ -665,7 +669,7 @@ class CheckOutViewSet(viewsets.ViewSet):
                 logger.error("Check-out date is not within the booking period.")
                 raise ValidationError("Check-out date must be within the booking period.")
 
-            if room_booking.status != 'checked_in':  # Ensure the room is in 'Checked-in' status
+            if booking.status != 'checked_in':  # Ensure the room is in 'Checked-in' status
                 logger.error("Room is not available for check-out.")
                 raise ValidationError("Room is not available for check-out.")
 
@@ -741,47 +745,7 @@ class ServiceUsageViewSet(viewsets.ViewSet):
         service_usage.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class BillingViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Billing.objects.all()
-        return Billing.objects.filter(tenant=user.tenant)
-
-    def list(self, request):
-        queryset = self.get_queryset()
-        serializer = BillingSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        queryset = self.get_queryset()
-        billing = get_object_or_404(queryset, pk=pk)
-        serializer = BillingSerializer(billing)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = BillingSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def update(self, request, pk=None):
-        queryset = self.get_queryset()
-        billing = get_object_or_404(queryset, pk=pk)
-        serializer = BillingSerializer(billing, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def destroy(self, request, pk=None):
-        queryset = self.get_queryset()
-        billing = get_object_or_404(queryset, pk=pk)
-        billing.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class PaymentViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -824,3 +788,61 @@ class PaymentViewSet(viewsets.ViewSet):
         payment = get_object_or_404(queryset, pk=pk)
         payment.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class BillingView(APIView):
+    def post(self, request, booking_id):
+        booking = get_object_or_404(Booking, id=booking_id)
+        room_bookings = RoomBooking.objects.filter(booking=booking)
+        
+        if not room_bookings.exists():
+            return Response({"error": "No room bookings found for this booking."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        rooms_data = []
+        total_amount = Decimal('0.00')
+
+        for room_booking in room_bookings:
+            check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+            check_out = CheckOut.objects.filter(room_booking=room_booking).first()
+
+            # Calculate stay count
+            if check_in and check_out:
+                duration = check_out.check_out_date - check_in.check_in_date
+                stay_count = (duration.days + 1) if duration.total_seconds() > 0 else 0
+            else:
+                stay_count = 0
+
+            # Fetch services and orders
+            services = ServiceUsage.objects.filter(room_id=room_booking)
+            service_data = [{"id": service.id, "price": float(service.total_price)} for service in services]
+
+            orders = Order.objects.filter(room_id=room_booking.room, booking_id=booking)
+            order_data = [{"id": order.id, "total": float(order.total_price)} for order in orders]
+
+            # Calculate room total
+            room_total = (room_booking.room.price * stay_count) + sum(service.total_price for service in services) + sum(order.total_price for order in orders)
+            total_amount += room_total
+
+            rooms_data.append({
+                "room_id": room_booking.room.id,
+                "price": float(room_booking.room.price),
+                "stay_count": stay_count,
+                "total": float(room_total),
+                "services": service_data,
+                "orders": order_data
+            })
+
+        # Create a new Billing entry
+        billing = Billing.objects.create(
+            room_booking=room_bookings.first(),  # Assuming one billing per booking
+            amount=total_amount,
+            details={"rooms": rooms_data}
+        )
+
+        response_data = {
+            "id": billing.id,
+            "rooms": rooms_data,
+            "total": float(total_amount)
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
