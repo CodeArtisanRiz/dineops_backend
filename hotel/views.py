@@ -801,21 +801,21 @@ class PaymentViewSet(viewsets.ViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class BillingView(APIView):
-    def post(self, request, booking_id):
+class BillingViewSet(APIView):
+    def post(self, request):
+        booking_id = request.data.get('booking_id')
+        if not booking_id:
+            return Response({"error": "Booking ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
         booking = get_object_or_404(Booking, id=booking_id)
 
         # Check if a billing entry already exists for this booking
-        # if Billing.objects.filter(booking=booking).exists():
-        #     return Response({"error": "Billing entry already exists for this booking."}, status=status.HTTP_400_BAD_REQUEST)
-
         existing_billing = Billing.objects.filter(booking=booking).first()
         if existing_billing:
             return Response(
                 {"error": f"Billing with ID {existing_billing.id} already exists for this booking ID {booking_id}."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
         
         room_bookings = RoomBooking.objects.filter(booking=booking)
         
@@ -883,12 +883,14 @@ class BillingView(APIView):
         # Return a success response
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def get(self, request, billing_id):
-        # Retrieve the billing entry
-        billing = get_object_or_404(Billing, id=billing_id)
-        
-        # Serialize the billing entry
-        serializer = BillingSerializer(billing)
-        
-        # Return the serialized data
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    def get(self, request, billing_id=None):
+        if billing_id:
+            # Retrieve a specific billing entry
+            billing = get_object_or_404(Billing, id=billing_id)
+            serializer = BillingSerializer(billing)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            # Retrieve all billing entries
+            billings = Billing.objects.all()
+            serializer = BillingSerializer(billings, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
