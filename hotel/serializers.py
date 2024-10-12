@@ -162,8 +162,12 @@ class BillingSerializer(serializers.ModelSerializer):
         for room in rooms_data:
             room_id = room.get('room_id')
             booking_id = obj.booking.id
-            orders = Order.objects.filter(room_id=room_id, booking_id=booking_id)
-            room['orders'] = OrderSerializer(orders, many=True).data
+            # Complete order data
+            # orders = Order.objects.filter(room_id=room_id, booking_id=booking_id)
+            # room['orders'] = OrderSerializer(orders, many=True).data
+            # Filtered order data
+            orders = Order.objects.filter(room_id=room_id, booking_id=booking_id).values('id', 'quantity', 'food_items', 'total_price', 'discount', 'coupon_used')
+            room['orders'] = list(orders)
         return {'rooms': rooms_data}
 
 class PaymentSerializer(serializers.ModelSerializer):
