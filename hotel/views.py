@@ -864,14 +864,21 @@ class BillingViewSet(APIView):
             details={"rooms": rooms_data}
         )
 
-        response_data = {
-            "id": billing.id,
-            "booking": booking.id,
-            "rooms": rooms_data,
-            "total": float(total_amount)
-        }
+        # Old response data returns only order id and total
+        # response_data = {
+        #     "id": billing.id,
+        #     "booking": booking.id,
+        #     "rooms": rooms_data,
+        #     "total": float(total_amount)
+        
+        # }
 
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        # return Response(response_data, status=status.HTTP_201_CREATED)
+
+
+        # Serialize the newly created billing entry in response
+        serializer = BillingSerializer(billing)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def delete(self, request, billing_id):
         # Retrieve the billing entry

@@ -166,8 +166,19 @@ class BillingSerializer(serializers.ModelSerializer):
             # orders = Order.objects.filter(room_id=room_id, booking_id=booking_id)
             # room['orders'] = OrderSerializer(orders, many=True).data
             # Filtered order data
+        # Bug Duplicate order data
+        #     orders = Order.objects.filter(room_id=room_id, booking_id=booking_id).values('id', 'quantity', 'food_items', 'total_price', 'discount', 'coupon_used')
+        #     room['orders'] = list(orders)
+        # return {'rooms': rooms_data}
+        # Filter duplicate order data
             orders = Order.objects.filter(room_id=room_id, booking_id=booking_id).values('id', 'quantity', 'food_items', 'total_price', 'discount', 'coupon_used')
-            room['orders'] = list(orders)
+            # Use a dictionary to filter out duplicates by order id
+            unique_orders = {}
+            for order in orders:
+                order_id = order['id']
+                if order_id not in unique_orders:
+                    unique_orders[order_id] = order
+            room['orders'] = list(unique_orders.values())
         return {'rooms': rooms_data}
 
 class PaymentSerializer(serializers.ModelSerializer):
