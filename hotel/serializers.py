@@ -146,9 +146,25 @@ class ServiceUsageSerializer(serializers.ModelSerializer):
         return obj.service_id.name  # Fetch the name of the service
 
 class BillingSerializer(serializers.ModelSerializer):
+    # orders = serializers.SerializerMethodField()
+    details = serializers.SerializerMethodField()
+
     class Meta:
         model = Billing
         fields = ['id', 'booking', 'room_booking', 'billing_date', 'amount', 'status', 'details']
+
+    def get_orders(self, obj):
+        orders = Order.objects.filter(booking_id=obj.booking.id)
+        return OrderSerializer(orders, many=True).data
+
+    def get_details(self, obj):
+        rooms_data = obj.details.get('rooms', [])
+        for room in rooms_data:
+            room_id = room.get('room_id')
+            booking_id = obj.booking.id
+            orders = Order.objects.filter(room_id=room_id, booking_id=booking_id)
+            room['orders'] = OrderSerializer(orders, many=True).data
+        return {'rooms': rooms_data}
 
 class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
@@ -161,4 +177,3 @@ class CheckInDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = CheckIn
         fields = ['id', 'room_booking', 'check_in_date', 'checked_in_by', 'guests']
-
