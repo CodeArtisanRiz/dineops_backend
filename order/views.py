@@ -12,7 +12,7 @@ from .serializers import OrderSerializer
 import logging
 from utils.get_or_create_user import get_or_create_user
 from django.utils import timezone
-from hotel.models import Room, Booking  # Import Room and Booking models
+from hotel.models import Room, Booking, RoomBooking, CheckIn, CheckOut  # Import Room and Booking models
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -44,7 +44,6 @@ class OrderViewSet(viewsets.ModelViewSet):
                     last_name=data.get('last_name', ''),
                     role='customer',
                     phone=data.get('phone'),
-                    # address=f"{data.get('address_line_1', '')} {data.get('address_line_2', '')}".strip(),
                     address_line_1=data.get('address_line_1', ''),
                     address_line_2=data.get('address_line_2', ''),
                     password='customer',
@@ -55,7 +54,29 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order_type = data.get('order_type')
                 logger.debug(f"Order type: {order_type}")
 
-                if order_type == 'dine_in':
+                if order_type == 'hotel':
+                    room_id = data.get('room_id')
+                    booking_id = data.get('booking_id')
+                    logger.debug(f"Room ID: {room_id}, Booking ID: {booking_id}")
+
+                    room = get_object_or_404(Room, pk=room_id)
+                    booking = get_object_or_404(Booking, pk=booking_id)
+                    logger.debug(f"Room: {room}, Booking: {booking}")
+
+                    # Check if the guest is checked in
+                    room_booking = get_object_or_404(RoomBooking, room=room, booking=booking)
+                    check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+                    check_out = CheckOut.objects.filter(room_booking=room_booking).first()
+
+                    if not check_in:
+                        return Response({"error": "Guest not checked in yet."}, status=status.HTTP_400_BAD_REQUEST)
+
+                    if check_out:
+                        return Response({"error": "Guest already checked out."}, status=status.HTTP_400_BAD_REQUEST)
+
+                    tables = []
+
+                elif order_type == 'dine_in':
                     table_ids = data.get('tables', [])
                     if not table_ids:
                         return Response({"error": "At least one table is required for dine-in orders."}, status=status.HTTP_400_BAD_REQUEST)
@@ -75,16 +96,6 @@ class OrderViewSet(viewsets.ModelViewSet):
                     room = None
                     booking = None
 
-                elif order_type == 'hotel':
-                    room_id = data.get('room_id')
-                    booking_id = data.get('booking_id')
-                    logger.debug(f"Room ID: {room_id}, Booking ID: {booking_id}")
-
-                    room = get_object_or_404(Room, pk=room_id)
-                    booking = get_object_or_404(Booking, pk=booking_id)
-                    logger.debug(f"Room: {room}, Booking: {booking}")
-
-                    tables = []
                 else:
                     return Response({"error": "Invalid order type."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -117,7 +128,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except ValidationError as e:
-            logger.exception(f"Error creating order: {e}")
+            logger.exception(f"Validation error: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception(f"Unexpected error: {e}")

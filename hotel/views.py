@@ -11,6 +11,7 @@ import json
 from datetime import datetime
 from rest_framework.views import APIView
 from decimal import Decimal
+# from dateutil.parser import parse as parse_date
 
 from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment, GuestDetails
 from order.models import Order
@@ -235,6 +236,24 @@ class BookingViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Validate room dates
+        invalid_dates = []
+        for room_data in rooms_data:
+            start_date = room_data.get('start_date')
+            end_date = room_data.get('end_date')
+            if start_date and end_date and start_date >= end_date:
+                invalid_dates.append({
+                    "room_id": room_data.get('room'),
+                    "start_date": start_date,
+                    "end_date": end_date
+                })
+
+        if invalid_dates:
+            return Response(
+                {"error": "End date must be greater than start date for the following rooms", "details": invalid_dates},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Handle guest details
         phone = data.get('phone')
         email = data.get('email')
@@ -243,7 +262,6 @@ class BookingViewSet(viewsets.ViewSet):
         address_line_1 = data.get('address_line_1', '')
         address_line_2 = data.get('address_line_2', '')
         dob = data.get('dob', None)
-        # address = f"{address_line_1} {address_line_2}".strip()
 
         guest_id = get_or_create_user(
             username=phone or email,
@@ -254,7 +272,7 @@ class BookingViewSet(viewsets.ViewSet):
             phone=phone,
             address_line_1=address_line_1,
             address_line_2=address_line_2,
-            password=data.get('password', 'guest'),
+            password=data.get(dob, 'default_password'),
             tenant=tenant
         )
 
@@ -475,7 +493,6 @@ class CheckInViewSet(viewsets.ViewSet):
             else:
                 # Convert QueryDict to a regular dict
                 data = request.POST.dict()
-                
                 # Manually combine nested fields into a single JSON string
                 guests = []
                 i = 0
@@ -499,10 +516,10 @@ class CheckInViewSet(viewsets.ViewSet):
                         i += 1
                     else:
                         break
-                
+
                 if not guests:
                     return Response({"error": "Guests data is missing"}, status=status.HTTP_400_BAD_REQUEST)
-                
+
                 data['guests'] = guests
 
             booking_id = data.get('booking_id')
@@ -522,11 +539,22 @@ class CheckInViewSet(viewsets.ViewSet):
                 raise ValidationError("Check-in date must be within the booking period.")
 
             # Check the status of the associated booking
-            if room_booking.booking.status not in ['pending', 'confirmed', 'partial_checked_in']:  # Allow only if status is Pending or Confirmed
+            if room_booking.booking.status not in ['pending', 'confirmed', 'partial_checked_in']:
                 return Response(
                     {"error": f"Cannot check-in. Booking status is {room_booking.booking.get_status_display()}."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+
+            # Check if the room's check_in_details is not null
+            # if room_booking.check_in_details is not None:
+            #     logger.error("Room is already checked in.")
+            #     return Response({"error": "Room is already checked in."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Add validation to check if the room is already checked in
+            existing_check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+            if existing_check_in:
+                logger.error(f"Room {room_id} is already checked in.")
+                return Response({"error": f"Room {room_id} is already checked in for booking {booking_id}."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Create users for guests and their details
             guest_ids = []
@@ -591,7 +619,6 @@ class CheckInViewSet(viewsets.ViewSet):
             if serializer.is_valid():
                 check_in = serializer.save()
                 check_in.guests.set(guest_ids)  # Associate guests with the check-in
-                # room_booking.booking.status = 'checked_in'  # Set booking status to 'Checked-in'
 
                 # Check the status of all room bookings for this booking
                 all_room_bookings = RoomBooking.objects.filter(booking=room_booking.booking)
@@ -613,6 +640,7 @@ class CheckInViewSet(viewsets.ViewSet):
                 return Response(response_data, status=status.HTTP_201_CREATED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
+            logger.exception("An error occurred during check-in.")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def list(self, request):
@@ -668,6 +696,7 @@ class CheckOutViewSet(viewsets.ViewSet):
             check_out_date_str = request.data.get('check_out_date', timezone.now().isoformat())
 
             # Parse the check_out_date string to a datetime object
+            # check_out_date = parse_date(check_out_date_str)
             check_out_date = datetime.fromisoformat(check_out_date_str)
 
             logger.debug(f"Attempting to check out for booking_id: {booking_id}, room_id: {room_id} at {check_out_date}")
@@ -680,21 +709,31 @@ class CheckOutViewSet(viewsets.ViewSet):
                 logger.error("Check-out date is not within the booking period.")
                 raise ValidationError("Check-out date must be within the booking period.")
 
-            if booking.status != 'checked_in':  # Ensure the room is in 'Checked-in' status
-                logger.error("Room is not available for check-out.")
-                raise ValidationError("Room is not available for check-out.")
+            # Ensure the room is checked in
+            check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+            if not check_in:
+                logger.error("Room is not checked in.")
+                raise ValidationError("Room is not checked in.")
+
+            # Ensure the room is not already checked out
+            if CheckOut.objects.filter(room_booking=room_booking).exists():
+                logger.error("Room is already checked out.")
+                raise ValidationError("Room is already checked out.")
 
             request.data['checked_out_by'] = request.user.id
             request.data['room_booking'] = room_booking.id
             serializer = CheckOutSerializer(data=request.data)
             if serializer.is_valid():
                 check_out = serializer.save()
-                room_booking.status = 'checked_out'  # Set status to 'Checked-out'
+                room_booking.is_active = False  # Set is_active to False
                 room_booking.save()
                 logger.info(f"Check-out successful for room_booking_id: {room_booking.id}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             logger.error(f"Check-out failed: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ValidationError as e:
+            logger.exception("Validation error during check-out.")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.exception("An error occurred during check-out.")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
