@@ -35,6 +35,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1', cast=Csv())
 
 ALLOWED_HOSTS = [
     '127.0.0.1',
+    'dineops.onrender.com',
     'dineops.onrender.com'
     ]
 
