@@ -9,7 +9,8 @@ from django.http import FileResponse
 from django.http import HttpResponseForbidden
 
 def home(request):
-    return HttpResponse("RMS Backend - Multi-Tenanant Accounts, Foods, POS, Analytics, and More!")
+    # return HttpResponse("RMS Backend - Multi-Tenanant Accounts, Foods, POS, Analytics, and More!")
+    return render(request, 'home_ui.html')
 
 @api_view(['GET'])
 @permission_classes([IsSuperuser])  # Superuser Only
