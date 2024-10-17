@@ -539,16 +539,11 @@ class CheckInViewSet(viewsets.ViewSet):
                 raise ValidationError("Check-in date must be within the booking period.")
 
             # Check the status of the associated booking
-            if room_booking.booking.status not in ['pending', 'confirmed', 'partial_checked_in']:
+            if room_booking.booking.status not in ['pending', 'confirmed', 'partial_checked_in', 'partial_checked_in_out', 'partial_checked_out']:
                 return Response(
                     {"error": f"Cannot check-in. Booking status is {room_booking.booking.get_status_display()}."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-
-            # Check if the room's check_in_details is not null
-            # if room_booking.check_in_details is not None:
-            #     logger.error("Room is already checked in.")
-            #     return Response({"error": "Room is already checked in."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Add validation to check if the room is already checked in
             existing_check_in = CheckIn.objects.filter(room_booking=room_booking).first()
@@ -625,12 +620,28 @@ class CheckInViewSet(viewsets.ViewSet):
                 all_checked_in = all(
                     CheckIn.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
                 )
+                any_checked_in = any(
+                    CheckIn.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
+                any_checked_out = any(
+                    CheckOut.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
+                all_checked_out = all(
+                    CheckOut.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
 
                 # Update booking status based on room check-in status
-                if all_checked_in:
+                if all_checked_in and not any_checked_out:
                     room_booking.booking.status = 'checked_in'
-                else:
+                elif any_checked_in and not all_checked_in and not any_checked_out:
                     room_booking.booking.status = 'partial_checked_in'
+                elif all_checked_in and any_checked_out and not all_checked_out:
+                    room_booking.booking.status = 'partial_checked_out'
+                elif any_checked_in and any_checked_out:
+                    room_booking.booking.status = 'partial_checked_in_out'
+                else:
+                    raise ValidationError("Unexpected booking status. Please check the room statuses.")
+
                 room_booking.booking.save()
 
                 # Add guests to the response
@@ -678,17 +689,6 @@ class CheckOutViewSet(viewsets.ViewSet):
             return CheckOut.objects.all()
         return CheckOut.objects.filter(tenant=user.tenant)
 
-    def list(self, request):
-        queryset = self.get_queryset()
-        serializer = CheckOutSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        queryset = self.get_queryset()
-        check_out = get_object_or_404(queryset, pk=pk)
-        serializer = CheckOutSerializer(check_out)
-        return Response(serializer.data)
-
     def create(self, request):
         try:
             booking_id = request.data.get('booking_id')
@@ -696,7 +696,6 @@ class CheckOutViewSet(viewsets.ViewSet):
             check_out_date_str = request.data.get('check_out_date', timezone.now().isoformat())
 
             # Parse the check_out_date string to a datetime object
-            # check_out_date = parse_date(check_out_date_str)
             check_out_date = datetime.fromisoformat(check_out_date_str)
 
             logger.debug(f"Attempting to check out for booking_id: {booking_id}, room_id: {room_id} at {check_out_date}")
@@ -727,6 +726,34 @@ class CheckOutViewSet(viewsets.ViewSet):
                 check_out = serializer.save()
                 room_booking.is_active = False  # Set is_active to False
                 room_booking.save()
+
+                # Check the status of all room bookings for this booking
+                all_room_bookings = RoomBooking.objects.filter(booking=booking)
+                all_checked_in = all(
+                    CheckIn.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
+                all_checked_out = all(
+                    CheckOut.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
+                any_checked_in = any(
+                    CheckIn.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
+                any_checked_out = any(
+                    CheckOut.objects.filter(room_booking=rb).exists() for rb in all_room_bookings
+                )
+
+                # Update booking status based on room check-out status
+                if all_checked_out:
+                    booking.status = 'checked_out'
+                elif all_checked_in and not all_checked_out:
+                    booking.status = 'partial_checked_out'
+                elif any_checked_in and any_checked_out:
+                    booking.status = 'partial_checked_in_out'
+                else:
+                    raise ValidationError("Unexpected booking status. Please check the room statuses.")
+
+                booking.save()
+
                 logger.info(f"Check-out successful for room_booking_id: {room_booking.id}")
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             logger.error(f"Check-out failed: {serializer.errors}")
@@ -737,6 +764,17 @@ class CheckOutViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.exception("An error occurred during check-out.")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = CheckOutSerializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def retrieve(self, request, pk=None):
+        queryset = self.get_queryset()
+        check_out = get_object_or_404(queryset, pk=pk)
+        serializer = CheckOutSerializer(check_out)
+        return Response(serializer.data)
 
     def update(self, request, pk=None):
         queryset = self.get_queryset()

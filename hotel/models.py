@@ -54,12 +54,14 @@ class Booking(models.Model):
         ('cancelled', 'Cancelled'),
         ('partial_checked_in', 'Partial Checked-in'),
         ('checked_in', 'Checked-in'),
+        ('partial_checked_in_out', 'Partial Checked-in and Checked-out'),
+        ('partial_checked_out', 'Partial Checked-out'),
         ('checked_out', 'Checked-out'),
         ('no_show', 'No-show')
     ]
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
     booking_date = models.DateTimeField(default=timezone.now, null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
     guests = models.ManyToManyField(User, related_name='bookings', blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     id_card = models.JSONField(blank=True, null=True)  # Added field
