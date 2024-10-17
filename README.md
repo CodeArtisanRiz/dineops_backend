@@ -26,7 +26,6 @@ source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 
 ```python
 pip install -r requirements.txt
-cd rms_backend
 ```
 
 ## Endpoints and Permissions
