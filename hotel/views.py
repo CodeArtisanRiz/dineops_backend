@@ -858,6 +858,15 @@ class ServiceUsageViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
+        service_id = request.data.get('service_id')
+        service = get_object_or_404(Service, id=service_id)
+
+        if not service.status:
+            return Response(
+                {"error": f"Cannot add disabled service: {service.name} with ID {service_id}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = ServiceUsageSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -1024,6 +1033,7 @@ class BillingViewSet(APIView):
             billings = Billing.objects.all()
             serializer = BillingSerializer(billings, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 
