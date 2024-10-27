@@ -123,12 +123,17 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return ServiceCategory.objects.all()
-        return ServiceCategory.objects.filter(tenant=user.tenant)
+            queryset = ServiceCategory.objects.all()
+        else:
+            queryset = ServiceCategory.objects.filter(tenant=user.tenant)
+        
+        logger.debug(f"ServiceCategory queryset for user {user.id}: {queryset}")
+        return queryset
 
     def list(self, request):
         queryset = self.get_queryset()
         serializer = ServiceCategorySerializer(queryset, many=True)
+        logger.debug(f"Serialized ServiceCategory data: {serializer.data}")
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
@@ -138,9 +143,13 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
+        user = request.user
         serializer = ServiceCategorySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            if not user.is_superuser:
+                serializer.save(tenant=user.tenant)
+            else:
+                serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -156,8 +165,13 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
     def destroy(self, request, pk=None):
         queryset = self.get_queryset()
         service_category = get_object_or_404(queryset, pk=pk)
+        service_category_name = service_category.name
+        service_category_id = service_category.id
         service_category.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"message": f"ServiceCategory '{service_category_name}' with ID {service_category_id} deleted"},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 class ServiceViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -165,12 +179,17 @@ class ServiceViewSet(viewsets.ViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return Service.objects.all()
-        return Service.objects.filter(tenant=user.tenant)
+            queryset = Service.objects.all()
+        else:
+            queryset = Service.objects.filter(tenant=user.tenant)
+        
+        logger.debug(f"Service queryset for user {user.id}: {queryset}")
+        return queryset
 
     def list(self, request):
         queryset = self.get_queryset()
         serializer = ServiceSerializer(queryset, many=True)
+        logger.debug(f"Serialized Service data: {serializer.data}")
         return Response(serializer.data)
 
     def retrieve(self, request, pk=None):
@@ -180,9 +199,13 @@ class ServiceViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
     def create(self, request):
+        user = request.user
         serializer = ServiceSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            if not user.is_superuser:
+                serializer.save(tenant=user.tenant)
+            else:
+                serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -198,8 +221,13 @@ class ServiceViewSet(viewsets.ViewSet):
     def destroy(self, request, pk=None):
         queryset = self.get_queryset()
         service = get_object_or_404(queryset, pk=pk)
+        service_name = service.name
+        service_id = service.id
         service.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            {"message": f"Service '{service_name}' with ID {service_id} deleted"},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 class BookingViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -978,3 +1006,6 @@ class BillingViewSet(APIView):
             billings = Billing.objects.all()
             serializer = BillingSerializer(billings, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+

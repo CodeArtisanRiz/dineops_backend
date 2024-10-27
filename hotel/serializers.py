@@ -62,14 +62,14 @@ class RoomSerializer(serializers.ModelSerializer):
 class ServiceCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceCategory
-        fields = ['id', 'name', 'sub_category', 'description', 'status']
+        fields = ['id', 'name', 'description', 'status', 'tenant']
 
 class ServiceSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(queryset=ServiceCategory.objects.all())
 
     class Meta:
         model = Service
-        fields = ['id', 'name', 'category', 'description', 'price']
+        fields = ['id', 'name', 'category', 'description', 'price', 'tenant']
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

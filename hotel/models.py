@@ -29,7 +29,7 @@ class Room(models.Model):
 
 class ServiceCategory(models.Model):
     name = models.CharField(max_length=50)
-    sub_category = models.CharField(max_length=50, blank=True, null=True)
+    # sub_category = models.CharField(max_length=50, blank=True, null=True)
     description = models.TextField(blank=True)
     status = models.BooleanField(default=True)
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
