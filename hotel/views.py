@@ -173,6 +173,15 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
             status=status.HTTP_204_NO_CONTENT
         )
 
+    def partial_update(self, request, pk=None):
+        queryset = self.get_queryset()
+        service_category = get_object_or_404(queryset, pk=pk)
+        serializer = ServiceCategorySerializer(service_category, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class ServiceViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
 
@@ -228,6 +237,15 @@ class ServiceViewSet(viewsets.ViewSet):
             {"message": f"Service '{service_name}' with ID {service_id} deleted"},
             status=status.HTTP_204_NO_CONTENT
         )
+
+    def partial_update(self, request, pk=None):
+        queryset = self.get_queryset()
+        service = get_object_or_404(queryset, pk=pk)
+        serializer = ServiceSerializer(service, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class BookingViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
@@ -1006,6 +1024,7 @@ class BillingViewSet(APIView):
             billings = Billing.objects.all()
             serializer = BillingSerializer(billings, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 
