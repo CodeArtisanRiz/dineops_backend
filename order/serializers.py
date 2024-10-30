@@ -51,8 +51,14 @@ class OrderSerializer(serializers.ModelSerializer):
             if data.get('tables'):
                 raise serializers.ValidationError("Tables should be null for hotel orders.")
         
+        elif order_type in ['take_away', 'delivery', 'online']:
+            if data.get('tables'):
+                raise serializers.ValidationError("Tables should be null for take-away/delivery/online orders.")
+            # if data.get('room_id') or data.get('booking_id'):
+            #     raise serializers.ValidationError("Room and booking should be null for take-away/delivery/online orders.")
+        
         else:
-            raise serializers.ValidationError("Invalid order type.")
+            raise serializers.ValidationError("Invalid order type. Valid types are: hotel, dine_in, take_away, delivery, online")
 
         if len(data['food_items']) != len(data['quantity']):
             raise serializers.ValidationError("The number of items and quantities must match.")
