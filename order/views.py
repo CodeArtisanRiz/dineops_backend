@@ -34,38 +34,26 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         try:
             with transaction.atomic():
-                logger.debug(f"Request Data: {data}")
-                logger.debug(f"Attempting to create/get customer with phone: {data.get('phone')} email: {data.get('email')}")
+                logger.debug(f"Creating order for user: {user.username}, data: {data}")
 
                 # Use get_or_create_user to get or create the customer
-                try:
-                    customer_id = get_or_create_user(
-                        username=data.get('phone') or data.get('email'),
-                        email=data.get('email'),
-                        first_name=data.get('first_name', ''),
-                        last_name=data.get('last_name', ''),
-                        role='customer',
-                        phone=data.get('phone'),
-                        address_line_1=data.get('address_line_1', ''),
-                        address_line_2=data.get('address_line_2', ''),
-                        password='customer',
-                        tenant=tenant
-                    )
-                    customer = User.objects.get(id=customer_id)
-                    logger.debug(f"Customer created/retrieved successfully: {customer_id}")
-                except Exception as e:
-                    logger.error(f"Error in customer creation: {str(e)}")
-                    raise
+                customer_id = get_or_create_user(
+                    username=data.get('phone') or data.get('email'),
+                    email=data.get('email'),
+                    first_name=data.get('first_name', ''),
+                    last_name=data.get('last_name', ''),
+                    role='customer',
+                    phone=data.get('phone'),
+                    address_line_1=data.get('address_line_1', ''),
+                    address_line_2=data.get('address_line_2', ''),
+                    password='customer',
+                    tenant=tenant
+                )
+                customer = User.objects.get(id=customer_id)
 
                 order_type = data.get('order_type')
                 logger.debug(f"Order type: {order_type}")
 
-                # Initialize common variables
-                tables = []
-                room_id = None
-                booking_id = None
-
-                # Handle different order types
                 if order_type == 'hotel':
                     room_id = data.get('room_id')
                     booking_id = data.get('booking_id')
@@ -105,20 +93,16 @@ class OrderViewSet(viewsets.ModelViewSet):
                         except Table.DoesNotExist:
                             return Response({"error": f"Table {table_id} does not exist."}, status=status.HTTP_400_BAD_REQUEST)
                     
-                    room_id = None
-                    booking_id = None
+                    room = None
+                    booking = None
                 
-                elif order_type in ['take_away', 'delivery', 'online']:
-                    # These types don't need special handling
+                elif order_type in ['take_away', 'delivery']:
+                    room = None
+                    booking = None
                     tables = []
-                    room_id = None
-                    booking_id = None
-                    
+
                 else:
-                    return Response(
-                        {"error": f"Invalid order type: {order_type}. Valid types are: hotel, dine_in, take_away, delivery, online"}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
+                    return Response({"error": "Invalid order type."}, status=status.HTTP_400_BAD_REQUEST)
 
                 # Create order
                 order = Order.objects.create(
@@ -132,8 +116,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order_type=order_type,
                     payment_method=data.get('payment_method'),
                     quantity=data.get('quantity', []),
-                    room_id=room_id,
-                    booking_id=booking_id
+                    room_id=room,
+                    booking_id=booking
                 )
                 order.food_items.set(data.get('food_items'))
                 order.tables.set(tables)
@@ -149,12 +133,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except ValidationError as e:
-            logger.error(f"Validation error in create order: {str(e)}")
+            logger.exception(f"Validation error: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            logger.error(f"Unexpected error in create order: {str(e)}")
-            return Response({"error": f"An unexpected error occurred: {str(e)}"}, 
-                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.exception(f"Unexpected error: {e}")
+            return Response({"error": "An unexpected error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, pk=None):
         user = request.user
