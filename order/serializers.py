@@ -16,7 +16,7 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = '__all__'
-        read_only_fields = ['modified_at', 'modified_by']
+        read_only_fields = ['created_at', 'modified_at', 'modified_by']
 
     def get_phone(self, obj):
         return obj.customer.phone

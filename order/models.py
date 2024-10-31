@@ -35,31 +35,31 @@ class Order(models.Model):
 
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='orders')
     customer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
-    order_type = models.CharField(max_length=20, choices=ORDER_CHOICES, default='dine_in')
-    tables = models.ManyToManyField(Table, blank=True, related_name='orders', null=True)  # Add this line
-    # room = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
-    payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    # updated_at = models.DateTimeField(auto_now=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
-    food_items = models.ManyToManyField(FoodItem)
-    quantity = models.JSONField(default=list, blank=True)
-    total_price = models.DecimalField(null=True, max_digits=10, decimal_places=2)
-    discount = models.DecimalField(null=True, blank=True, max_digits=10, decimal_places=2)  # Added discount field
-    coupon_used = models.JSONField(default=list, blank=True)  # Added coupon used[] field
-    notes = models.TextField(null=True, blank=True)
-
-    kot_count = models.IntegerField(default=0)
-
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)
-    room_id = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True)  # New field
-    booking_id = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True)  # Updated field
 
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in_progress')
+    order_type = models.CharField(max_length=20, choices=ORDER_CHOICES, default='dine_in')
+    tables = models.ManyToManyField(Table, blank=True, related_name='orders', null=True)
+    room_id = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True)
+    booking_id = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True)
+
+    food_items = models.ManyToManyField(FoodItem)
+    quantity = models.JSONField(default=list, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    kot_count = models.IntegerField(default=0)
+    
+
+    # payment_method = models.CharField(max_length=20, choices=PAYMENT_CHOICES, null=True, blank=True)
+    # total_price = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # Added discount field
+    # coupon_used = models.JSONField(default=list, blank=True)  # Added coupon used[] field
     # Add new price-related fields
-    sub_total = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # Sum of all items
-    total_amount = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # sub_total + GST
-    net_amount = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # total_amount - discount
+    # sub_total = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # Sum of all items
+    # discount = models.DecimalField(null=True, blank=True, max_digits=10, decimal_places=2)
+    # gst = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # GST amount
+    # total_amount = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # sub_total - discount + gst
+    # net_amount = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # total_amount
 
     def __str__(self):
         return f"Order {self.id} - {self.status}"
