@@ -56,5 +56,10 @@ class Order(models.Model):
     room_id = models.ForeignKey(Room, on_delete=models.SET_NULL, null=True, blank=True)  # New field
     booking_id = models.ForeignKey(Booking, on_delete=models.SET_NULL, null=True, blank=True)  # Updated field
 
+    # Add new price-related fields
+    sub_total = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # Sum of all items
+    total_amount = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # sub_total + GST
+    net_amount = models.DecimalField(null=True, max_digits=10, decimal_places=2)  # total_amount - discount
+
     def __str__(self):
         return f"Order {self.id} - {self.status}"

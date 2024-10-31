@@ -63,6 +63,13 @@ class OrderSerializer(serializers.ModelSerializer):
         if len(data['food_items']) != len(data['quantity']):
             raise serializers.ValidationError("The number of items and quantities must match.")
         
+        if all(data.get(field) is not None for field in ['sub_total', 'total_amount', 'net_amount']):
+            if data['sub_total'] < 0 or data['total_amount'] < 0 or data['net_amount'] < 0:
+                raise serializers.ValidationError("Price fields cannot be negative.")
+            
+            if data['net_amount'] > data['total_amount']:
+                raise serializers.ValidationError("Net amount cannot be greater than total amount.")
+        
         return data
 
     def create(self, validated_data):
