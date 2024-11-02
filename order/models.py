@@ -74,10 +74,13 @@ class Order(models.Model):
                     item_qty = Decimal(str(qty))
                     total += item_price * item_qty
 
-                self.total = total
-                self.net_total = total - (self.discount or Decimal('0.00'))
-                return True
-            return False
+            self.total = total
+            self.net_total = total - (self.discount or Decimal('0.00'))
+
+            # Debugging output
+            print(f"Total: {self.total}, Discount: {self.discount}, Net Total: {self.net_total}")
+
+            return True
             
         except Exception as e:
             print(f"Error calculating totals: {e}")
