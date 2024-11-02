@@ -67,6 +67,8 @@ INSTALLED_APPS = [
     'order',
     # Hotel app for hotel management
     'hotel',
+    # Billing app for billing management
+    'billing',
 ]
 
 SWAGGER_SETTINGS = {
