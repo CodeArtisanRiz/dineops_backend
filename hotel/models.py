@@ -2,6 +2,7 @@ from django.db import models
 from accounts.models import User, Tenant
 from django.utils import timezone
 import logging
+from decimal import Decimal
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,30 @@ class Booking(models.Model):
     def __str__(self):
         return f"Booking {self.id} - Tenant: {self.tenant} - Status: {self.get_status_display()}"
 
+    def calculate_total_room_charges(self):
+        """Calculate the total room charges for the booking."""
+        total_charges = Decimal('0.00')
+        room_bookings = RoomBooking.objects.filter(booking=self)
+
+        for room_booking in room_bookings:
+            room = room_booking.room
+            duration = self.get_duration(room_booking)
+            total_charges += room.price * duration
+
+        return total_charges
+
+    def get_duration(self, room_booking):
+        """Calculate the duration of the stay for a specific room booking."""
+        check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+        check_out = CheckOut.objects.filter(room_booking=room_booking).first()
+
+        if check_in and check_out and check_in.check_in_date and check_out.check_out_date:
+            return (check_out.check_out_date - check_in.check_in_date).days
+        else:
+            # Handle missing dates
+            print(f"Missing check-in or check-out date for room booking {room_booking.id}")
+            return 0
+
 class RoomBooking(models.Model):
     booking = models.ForeignKey(Booking, on_delete=models.CASCADE)
     room = models.ForeignKey(Room, on_delete=models.CASCADE)
@@ -82,7 +107,7 @@ class RoomBooking(models.Model):
 
 class CheckIn(models.Model):
     room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
-    check_in_date = models.DateTimeField(default=timezone.now)
+    check_in_date = models.DateField()
     checked_in_by = models.ForeignKey(User, on_delete=models.CASCADE)
     guests = models.ManyToManyField(User, related_name='checkins')  # Added field
 
@@ -91,7 +116,7 @@ class CheckIn(models.Model):
 
 class CheckOut(models.Model):
     room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
-    check_out_date = models.DateTimeField(default=timezone.now)
+    check_out_date = models.DateField()
     checked_out_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self):
