@@ -40,22 +40,44 @@ class TenantViewSet(viewsets.ModelViewSet):
         if not user.is_superuser:
             raise PermissionDenied("You do not have permission to perform this action.")
 
-        tenant_name = request.data.get('tenant_name')
-        if not tenant_name:
-            return Response({'error': 'Tenant name is required'}, status=status.HTTP_400_BAD_REQUEST)
+        # Set default GST rates if not provided
+        request.data._mutable = True
         
-        logo_urls = handle_image_upload(request, tenant_name, 'logo', 'logo')
+        # Restaurant GST defaults
+        if 'restaurant_cgst' not in request.data:
+            request.data['restaurant_cgst'] = '2.50'
+            request.data['restaurant_sgst'] = '2.50'
+
+        # Hotel GST defaults (if hotel feature is enabled)
+        if request.data.get('has_hotel_feature'):
+            if 'hotel_cgst_lower' not in request.data:
+                request.data['hotel_cgst_lower'] = '6.00'
+                request.data['hotel_sgst_lower'] = '6.00'
+                request.data['hotel_cgst_upper'] = '9.00'
+                request.data['hotel_sgst_upper'] = '9.00'
+                request.data['hotel_gst_limit_margin'] = '7500.00'
+
+            # Service GST defaults
+            if 'service_cgst_lower' not in request.data:
+                request.data['service_cgst_lower'] = '9.00'
+                request.data['service_sgst_lower'] = '9.00'
+                request.data['service_cgst_upper'] = '14.00'
+                request.data['service_sgst_upper'] = '14.00'
+                # service_gst_limit_margin is optional, so not setting a default
+
+        request.data._mutable = False
+
+        # Handle logo upload and other operations
+        logo_urls = handle_image_upload(request, request.data.get('tenant_name'), 'logo', 'logo')
         if logo_urls:
-            request.data._mutable = True  # Make request data mutable
-            request.data['logo'] = json.dumps(logo_urls)  # Convert list to JSON string
-            request.data._mutable = False  # Make request data immutable
-            logger.debug(f'Image URLs added to request data: {request.data["logo"]}')
+            request.data._mutable = True
+            request.data['logo'] = json.dumps(logo_urls)
+            request.data._mutable = False
 
         serializer = TenantSerializer(data=request.data)
         if serializer.is_valid():
             tenant = serializer.save()
-            total_tables = int(request.data.get('total_tables', 0))  # Convert to int here
-            return Response(serializer.data, status=status.HTTP_201_CREATED )
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, *args, **kwargs):
@@ -65,35 +87,37 @@ class TenantViewSet(viewsets.ModelViewSet):
         if not user.is_superuser and tenant.id != user.tenant_id:
             raise PermissionDenied("You do not have permission to perform this action.")
 
-        # Check if subscription fields are being updated by a non-superuser
+        # Check if GST rates are being updated by a non-superuser
+        gst_fields = [
+            'restaurant_cgst', 'restaurant_sgst',
+            'hotel_cgst_lower', 'hotel_sgst_lower',
+            'hotel_cgst_upper', 'hotel_sgst_upper',
+            'hotel_gst_limit_margin',
+            'service_cgst_lower', 'service_sgst_lower',
+            'service_cgst_upper', 'service_sgst_upper',
+            'service_gst_limit_margin'
+        ]
+        
         if not user.is_superuser:
-            if 'subscription_from' in request.data or 'subscription_to' in request.data:
-                raise PermissionDenied("Only superusers can update subscription fields.")
+            for field in gst_fields:
+                if field in request.data:
+                    raise PermissionDenied(
+                        "Only superusers can update GST rates and margins."
+                    )
 
-        total_tables = request.data.get('total_tables', None)
-
+        # Handle logo upload and continue with update
         logo_urls = handle_image_upload(request, tenant.tenant_name, 'logo', 'logo')
         if logo_urls:
-            request.data._mutable = True  # Make request data mutable
-            request.data['logo'] = json.dumps(logo_urls)  # Convert list to JSON string
-            request.data._mutable = False  # Make request data immutable
-            logger.debug(f'Image URLs added to request data: {request.data["logo"]}')
-        
-        # Append to modified_at and modified_by fields
+            request.data._mutable = True
+            request.data['logo'] = json.dumps(logo_urls)
+            request.data._mutable = False
+
+        # Track modifications
         tenant.modified_at.append(datetime.now(timezone.utc).isoformat())
         tenant.modified_by.append(f"{user.username}({user.id})")
         tenant.save()
 
-        response = super().update(request, *args, **kwargs)
-        if total_tables is not None:
-            total_tables = int(total_tables)
-            current_count = tenant.tables.count()
-            if total_tables > current_count:
-                self.create_tables(tenant, total_tables - current_count)
-            elif total_tables < current_count:
-                self.remove_tables(tenant, current_count - total_tables)
-            tenant.total_tables = total_tables  # Ensure tenant.total_tables is updated
-        return response
+        return super().update(request, *args, **kwargs)
 
     def remove_tables(self, tenant, count):
         tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]

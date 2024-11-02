@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from .models import Tenant
 from foods.models import Table
 from foods.serializers import TableSerializer
+from decimal import Decimal
 
 
 
@@ -13,45 +14,59 @@ UserModel = get_user_model()
 class TenantSerializer(serializers.ModelSerializer):
     tables = TableSerializer(many=True, read_only=True)
     total_tables = serializers.IntegerField(write_only=True, required=False)
-    subscription = serializers.SerializerMethodField()  # New field
+    subscription = serializers.SerializerMethodField()
 
     class Meta:
         model = Tenant
         fields = [
-            'id', 'tenant_name', 'has_hotel_feature', 'gst_no', 'total_tables',
-            'address_line_1', 'address_line_2', 'city', 'state', 'country', 'pin', 'logo',
-            'phone', 'alt_phone', 'email', 'website', 'tables', 'created_at', 'modified_at', 'modified_by',
-            'food_gst','hotel_gst_lower','hotel_gst_upper','hotel_gst_limit_margin',
-            'subscription_from', 'subscription_to', 'subscription'  # Include new field
+            'id', 
+            'tenant_name', 
+            'has_hotel_feature',
+            'gst_no',
+            'total_tables',
+            'address_line_1',
+            'address_line_2',
+            'city',
+            'state',
+            'country',
+            'pin',
+            'phone',
+            'alt_phone',
+            'email',
+            'website',
+            'logo',
+            'tables',
+            
+            # GST Rates - all optional and flexible
+            'restaurant_cgst',
+            'restaurant_sgst',
+            
+            'hotel_cgst_lower',
+            'hotel_sgst_lower',
+            'hotel_cgst_upper',
+            'hotel_sgst_upper',
+            'hotel_gst_limit_margin',
+            
+            'service_cgst_lower',
+            'service_sgst_lower',
+            'service_cgst_upper',
+            'service_sgst_upper',
+            'service_gst_limit_margin',
+            
+            'subscription_from',
+            'subscription_to',
+            'subscription',
+            'created_at',
+            'modified_at',
+            'modified_by'
         ]
-        read_only_fields = ['created_at', 'modified_at', 'modified_by']  # Ensure these fields are read-only
+        read_only_fields = ['created_at', 'modified_at', 'modified_by']
 
-    def create(self, validated_data):
-        total_tables = validated_data.pop('total_tables', 0)
-        tenant = super().create(validated_data)
-        for i in range(1, total_tables + 1):
-            Table.objects.create(tenant=tenant, table_number=i)
-        return tenant
-
-    def update(self, instance, validated_data):
-        total_tables = validated_data.pop('total_tables', None)
-        tenant = super().update(instance, validated_data)
-        if total_tables is not None:
-            current_count = tenant.tables.count()
-            if total_tables > current_count:
-                for i in range(current_count + 1, total_tables + 1):
-                    Table.objects.create(tenant=tenant, table_number=i)
-        return tenant
-
-    def get_subscription(self, obj):  # New method to determine subscription status
+    def get_subscription(self, obj):
         from datetime import date
         if obj.subscription_from is None or obj.subscription_to is None:
-            return None # Return null directly
+            return None
         return obj.subscription_from <= date.today() <= obj.subscription_to
-# class TenantSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Tenant
-#         fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
