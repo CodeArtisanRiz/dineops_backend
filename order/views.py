@@ -74,7 +74,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     return Response({"error": "Invalid order type."}, status=status.HTTP_400_BAD_REQUEST)
 
                 # Create order
-                order = Order.objects.create(
+                order = Order(
                     tenant=tenant,
                     customer=customer,
                     notes=data.get('notes', ''),
@@ -82,23 +82,35 @@ class OrderViewSet(viewsets.ModelViewSet):
                     order_type=order_type,
                     quantity=data.get('quantity', []),
                     room_id=room,
-                    booking_id=booking,
-                    discount=data.get('discount', Decimal('0.00'))
+                    booking_id=booking
                 )
+
+                # Save the order to generate an ID
+                order.save()
 
                 # Set many-to-many relationships
                 order.food_items.set(data.get('food_items'))
                 order.tables.set(tables)
                 order.kot_count = data.get('kot_count', 0)
 
+                # Calculate totals
+                total = Decimal('0.00')
+                food_items = order.food_items.all()
+                quantities = order.quantity
+
+                if food_items and quantities and len(food_items) == len(quantities):
+                    for food_item, qty in zip(food_items, quantities):
+                        item_price = Decimal(str(food_item.price))
+                        item_qty = Decimal(str(qty))
+                        total += item_price * item_qty
+
+                order.total = total
+                order.save()
+
                 # Update tables with the order ID
                 for table in tables:
                     table.order = order.id
                     table.save()
-
-                # Calculate totals and save
-                order.calculate_totals()
-                order.save()
 
                 serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)

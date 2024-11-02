@@ -20,10 +20,10 @@ class OrderSerializer(serializers.ModelSerializer):
             'id', 'tenant', 'customer', 'created_at', 'modified_at', 'modified_by',
             'status', 'order_type', 'tables', 'room_id', 'booking_id',
             'food_items', 'quantity', 'notes', 'kot_count',
-            'total', 'discount', 'net_total',
+            'total',
             'phone', 'customer'
         ]
-        read_only_fields = ['created_at', 'modified_at', 'modified_by', 'total', 'net_total']
+        read_only_fields = ['created_at', 'modified_at', 'modified_by', 'total']
 
     def get_phone(self, obj):
         return obj.customer.phone
