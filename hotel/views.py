@@ -13,10 +13,10 @@ from rest_framework.views import APIView
 from decimal import Decimal
 # from dateutil.parser import parse as parse_date
 
-from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment, GuestDetails
+from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, GuestDetails
 from order.models import Order
 from accounts.models import Tenant, User
-from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, BillingSerializer, PaymentSerializer, UserSerializer, GuestUserSerializer, CheckInDetailSerializer
+from .serializers import RoomSerializer, ServiceCategorySerializer, ServiceSerializer, BookingSerializer, RoomBookingSerializer, CheckInSerializer, CheckOutSerializer, ServiceUsageSerializer, UserSerializer, GuestUserSerializer, CheckInDetailSerializer
 from utils.image_upload import handle_image_upload
 from utils.get_or_create_user import get_or_create_user
 
@@ -887,152 +887,6 @@ class ServiceUsageViewSet(viewsets.ViewSet):
         service_usage = get_object_or_404(queryset, pk=pk)
         service_usage.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-
-class PaymentViewSet(viewsets.ViewSet):
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        user = self.request.user
-        if user.is_superuser:
-            return Payment.objects.all()
-        return Payment.objects.filter(tenant=user.tenant)
-
-    def list(self, request):
-        queryset = self.get_queryset()
-        serializer = PaymentSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-    def retrieve(self, request, pk=None):
-        queryset = self.get_queryset()
-        payment = get_object_or_404(queryset, pk=pk)
-        serializer = PaymentSerializer(payment)
-        return Response(serializer.data)
-
-    def create(self, request):
-        serializer = PaymentSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def update(self, request, pk=None):
-        queryset = self.get_queryset()
-        payment = get_object_or_404(queryset, pk=pk)
-        serializer = PaymentSerializer(payment, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def destroy(self, request, pk=None):
-        queryset = self.get_queryset()
-        payment = get_object_or_404(queryset, pk=pk)
-        payment.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-
-class BillingViewSet(APIView):
-    def post(self, request):
-        booking_id = request.data.get('booking_id')
-        if not booking_id:
-            return Response({"error": "Booking ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-
-        booking = get_object_or_404(Booking, id=booking_id)
-
-        # Check if a billing entry already exists for this booking
-        existing_billing = Billing.objects.filter(booking=booking).first()
-        if existing_billing:
-            return Response(
-                {"error": f"Billing with ID {existing_billing.id} already exists for this booking ID {booking_id}."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        room_bookings = RoomBooking.objects.filter(booking=booking)
-        
-        if not room_bookings.exists():
-            return Response({"error": "No room bookings found for this booking."}, status=status.HTTP_400_BAD_REQUEST)
-        
-        rooms_data = []
-        total_amount = Decimal('0.00')
-
-        for room_booking in room_bookings:
-            check_in = CheckIn.objects.filter(room_booking=room_booking).first()
-            check_out = CheckOut.objects.filter(room_booking=room_booking).first()
-
-            # Calculate stay count
-            if check_in and check_out:
-                duration = check_out.check_out_date - check_in.check_in_date
-                stay_count = (duration.days + 1) if duration.total_seconds() > 0 else 0
-            else:
-                stay_count = 0
-
-            # Fetch services and orders
-            services = ServiceUsage.objects.filter(room_id=room_booking)
-            service_data = [{"id": service.id, "name": service.service_id.name,  "price": float(service.total_price)} for service in services]
-
-            orders = Order.objects.filter(room_id=room_booking.room, booking_id=booking)
-            order_data = [{"id": order.id, "total": float(order.total_price)} for order in orders]
-
-            # Calculate room total
-            room_total = (room_booking.room.price * stay_count) + sum(service.total_price for service in services) + sum(order.total_price for order in orders)
-            total_amount += room_total
-
-            rooms_data.append({
-                "room_id": room_booking.room.id,
-                "price": float(room_booking.room.price),
-                "stay_count": stay_count,
-                "total": float(room_total),
-                "services": service_data,
-                "orders": order_data
-            })
-
-        # Create a new Billing entry
-        billing = Billing.objects.create(
-            booking=booking,
-            room_booking=room_bookings.first(),  # Assuming one billing per booking
-            amount=total_amount,
-            details={"rooms": rooms_data}
-        )
-
-        # Old response data returns only order id and total
-        # response_data = {
-        #     "id": billing.id,
-        #     "booking": booking.id,
-        #     "rooms": rooms_data,
-        #     "total": float(total_amount)
-        
-        # }
-
-        # return Response(response_data, status=status.HTTP_201_CREATED)
-
-
-        # Serialize the newly created billing entry in response
-        serializer = BillingSerializer(billing)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def delete(self, request, billing_id):
-        # Retrieve the billing entry
-        billing = get_object_or_404(Billing, id=billing_id)
-        
-        # Delete the billing entry
-        billing.delete()
-        
-        # Return a success response
-        return Response(status=status.HTTP_204_NO_CONTENT)
-
-    def get(self, request, billing_id=None):
-        if billing_id:
-            # Retrieve a specific billing entry
-            billing = get_object_or_404(Billing, id=billing_id)
-            serializer = BillingSerializer(billing)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            # Retrieve all billing entries
-            billings = Billing.objects.all()
-            serializer = BillingSerializer(billings, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 

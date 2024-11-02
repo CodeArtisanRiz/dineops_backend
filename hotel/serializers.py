@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, Billing, Payment, GuestDetails
+from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, GuestDetails
 import logging
 from datetime import date
 from accounts.models import User
@@ -144,47 +144,6 @@ class ServiceUsageSerializer(serializers.ModelSerializer):
 
     def get_service_name(self, obj):
         return obj.service_id.name  # Fetch the name of the service
-
-class BillingSerializer(serializers.ModelSerializer):
-    # orders = serializers.SerializerMethodField()
-    details = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Billing
-        fields = ['id', 'booking', 'room_booking', 'billing_date', 'amount', 'status', 'details']
-
-    def get_orders(self, obj):
-        orders = Order.objects.filter(booking_id=obj.booking.id)
-        return OrderSerializer(orders, many=True).data
-
-    def get_details(self, obj):
-        rooms_data = obj.details.get('rooms', [])
-        for room in rooms_data:
-            room_id = room.get('room_id')
-            booking_id = obj.booking.id
-            # Complete order data
-            # orders = Order.objects.filter(room_id=room_id, booking_id=booking_id)
-            # room['orders'] = OrderSerializer(orders, many=True).data
-            # Filtered order data
-        # Bug Duplicate order data
-        #     orders = Order.objects.filter(room_id=room_id, booking_id=booking_id).values('id', 'quantity', 'food_items', 'total_price', 'discount', 'coupon_used')
-        #     room['orders'] = list(orders)
-        # return {'rooms': rooms_data}
-        # Filter duplicate order data
-            orders = Order.objects.filter(room_id=room_id, booking_id=booking_id).values('id', 'quantity', 'food_items', 'total_price', 'discount', 'coupon_used')
-            # Use a dictionary to filter out duplicates by order id
-            unique_orders = {}
-            for order in orders:
-                order_id = order['id']
-                if order_id not in unique_orders:
-                    unique_orders[order_id] = order
-            room['orders'] = list(unique_orders.values())
-        return {'rooms': rooms_data}
-
-class PaymentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Payment
-        fields = ['id', 'billing', 'payment_date', 'amount', 'payment_method', 'status']
 
 class CheckInDetailSerializer(serializers.ModelSerializer):
     guests = GuestUserSerializer(many=True, read_only=True)

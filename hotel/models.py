@@ -108,27 +108,6 @@ class ServiceUsage(models.Model):
     def __str__(self):
         return f"ServiceUsage {self.id} -Booking: {self.booking_.id} -RoomBooking: {self.room_.id} - Service: {self.service.id}"
 
-class Billing(models.Model):
-    booking = models.OneToOneField(Booking, on_delete=models.CASCADE, unique=True, null=True, blank=True)  # Ensure one billing per booking
-    room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
-    billing_date = models.DateTimeField(default=timezone.now)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    status = models.BooleanField(default=False)
-    details = models.JSONField(blank=True, null=True)
-
-    def __str__(self):
-        return f"Billing {self.id} - Booking: {self.booking.id}"
-
-class Payment(models.Model):
-    billing = models.ForeignKey(Billing, on_delete=models.CASCADE)
-    payment_date = models.DateTimeField(default=timezone.now)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_method = models.CharField(max_length=50)
-    status = models.BooleanField(default=False)
-
-    def __str__(self):
-        return f"Payment {self.id} - Billing: {self.billing.id}"
-
 class GuestDetails(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='guest_details')
     coming_from = models.CharField(max_length=255)
