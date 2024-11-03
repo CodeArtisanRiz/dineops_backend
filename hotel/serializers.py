@@ -124,7 +124,7 @@ class GuestUserSerializer(serializers.ModelSerializer):
         fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'address_line_1', 'address_line_2', 'guest_details']
 
 class CheckInSerializer(serializers.ModelSerializer):
-    guests = GuestUserSerializer(many=True, read_only=True)  # Use GuestUserSerializer
+    guests = GuestUserSerializer(many=True, read_only=True)
 
     class Meta:
         model = CheckIn

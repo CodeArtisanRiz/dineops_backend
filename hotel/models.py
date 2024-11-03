@@ -107,16 +107,16 @@ class RoomBooking(models.Model):
 
 class CheckIn(models.Model):
     room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
-    check_in_date = models.DateField()
+    check_in_date = models.DateTimeField()
     checked_in_by = models.ForeignKey(User, on_delete=models.CASCADE)
-    guests = models.ManyToManyField(User, related_name='checkins')  # Added field
+    guests = models.ManyToManyField(User, related_name='checkins')
 
     def __str__(self):
         return f"CheckIn {self.id} - RoomBooking: {self.room_booking.id}"
 
 class CheckOut(models.Model):
     room_booking = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
-    check_out_date = models.DateField()
+    check_out_date = models.DateTimeField()
     checked_out_by = models.ForeignKey(User, on_delete=models.CASCADE)
 
     def __str__(self):

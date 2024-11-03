@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404
 from django.db import IntegrityError
 from django.utils import timezone
 import json
-from datetime import datetime
+from datetime import datetime, date
 from rest_framework.views import APIView
 from decimal import Decimal
 # from dateutil.parser import parse as parse_date
@@ -577,7 +577,17 @@ class CheckInViewSet(viewsets.ViewSet):
                 return Response({"error": "Guests data is missing"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Parse the check_in_date string to a datetime object
-            check_in_date = datetime.fromisoformat(check_in_date_str)
+            check_in_date_str = data.get('check_in_date', timezone.now().isoformat())
+            try:
+                # Attempt to parse as datetime first
+                check_in_date = datetime.fromisoformat(check_in_date_str.replace('Z', '+00:00'))
+            except ValueError:
+                # Fallback to parsing as date if datetime parsing fails
+                check_in_date = datetime.strptime(check_in_date_str, '%Y-%m-%d').date()
+
+            # Ensure check_in_date is a datetime object
+            if isinstance(check_in_date, date) and not isinstance(check_in_date, datetime):
+                check_in_date = datetime.combine(check_in_date, datetime.min.time())
 
             room_booking = get_object_or_404(RoomBooking, booking_id=booking_id, room_id=room_id)
 
@@ -742,7 +752,14 @@ class CheckOutViewSet(viewsets.ViewSet):
             check_out_date_str = request.data.get('check_out_date', timezone.now().isoformat())
 
             # Parse the check_out_date string to a datetime object
-            check_out_date = datetime.fromisoformat(check_out_date_str)
+            try:
+                check_out_date = datetime.fromisoformat(check_out_date_str.replace('Z', '+00:00'))
+            except ValueError:
+                check_out_date = datetime.strptime(check_out_date_str, '%Y-%m-%d').date()
+
+            # Ensure check_out_date is a datetime object
+            if isinstance(check_out_date, date) and not isinstance(check_out_date, datetime):
+                check_out_date = datetime.combine(check_out_date, datetime.min.time())
 
             logger.debug(f"Attempting to check out for booking_id: {booking_id}, room_id: {room_id} at {check_out_date}")
 
