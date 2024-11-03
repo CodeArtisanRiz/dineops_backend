@@ -12,17 +12,21 @@ class BillingService:
 
     @staticmethod
     def generate_bill_numbers(tenant, bill_type):
+        # Generate a new general bill number
+        last_bill_no = Bill.objects.filter(tenant=tenant).aggregate(Max('bill_no'))['bill_no__max'] or 0
+        bill_no = last_bill_no + 1
+
         if bill_type == 'RES':
             # Generate a new restaurant bill number
             last_res_bill = Bill.objects.filter(tenant=tenant, bill_type='RES').aggregate(Max('res_bill_no'))['res_bill_no__max'] or 0
             res_bill_no = last_res_bill + 1
-            return None, res_bill_no, None
+            return bill_no, res_bill_no, None
         elif bill_type == 'HOT':
             # Generate a new hotel bill number
             last_hot_bill = Bill.objects.filter(tenant=tenant, bill_type='HOT').aggregate(Max('hot_bill_no'))['hot_bill_no__max'] or 0
             hot_bill_no = last_hot_bill + 1
-            return None, None, hot_bill_no
+            return bill_no, None, hot_bill_no
 
     @staticmethod
-    def generate_gst_bill_no(bill_type, res_bill_no, bill_id):
-        return f"{bill_type}/{res_bill_no}/{bill_id}" 
+    def generate_gst_bill_no(bill_type, bill_no, res_or_hot_bill_no):
+        return f"{bill_type}/{bill_no}/{res_or_hot_bill_no}"
