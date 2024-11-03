@@ -140,7 +140,7 @@ class ServiceUsageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ServiceUsage
-        fields = ['id', 'booking_id', 'room_id', 'service_id', 'service_name', 'usage_date', 'quantity', 'total_price']
+        fields = ['id', 'booking_id', 'room_id', 'service_id', 'service_name', 'usage_date']
 
     def get_service_name(self, obj):
         return obj.service_id.name  # Fetch the name of the service

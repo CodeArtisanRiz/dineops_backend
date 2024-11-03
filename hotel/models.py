@@ -127,11 +127,9 @@ class ServiceUsage(models.Model):
     room_id = models.ForeignKey(RoomBooking, on_delete=models.CASCADE)
     service_id = models.ForeignKey(Service, on_delete=models.CASCADE)
     usage_date = models.DateTimeField(default=timezone.now)
-    quantity = models.IntegerField(default=1)
-    total_price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
-        return f"ServiceUsage {self.id} -Booking: {self.booking_.id} -RoomBooking: {self.room_.id} - Service: {self.service.id}"
+        return f"ServiceUsage {self.id} -Booking: {self.booking_id.id} -RoomBooking: {self.room_id.id} - Service: {self.service_id.id}"
 
 class GuestDetails(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='guest_details')
