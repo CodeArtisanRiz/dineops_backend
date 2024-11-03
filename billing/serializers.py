@@ -1,24 +1,19 @@
 from rest_framework import serializers
-from .models import Bill, BillPayment
-from order.serializers import OrderSerializer
-from hotel.serializers import BookingSerializer
+from .models import Bill
 
 class BillSerializer(serializers.ModelSerializer):
-    order_details = OrderSerializer(source='order', read_only=True)
-    booking_details = BookingSerializer(source='booking', read_only=True)
-
     class Meta:
         model = Bill
         fields = [
             'id',
             'tenant',
-            'bill_number',
+            'bill_no',
+            'res_bill_no',
+            'hot_bill_no',
             'gst_bill_no',
             'bill_type',
-            'order',
-            'order_details',
-            'booking',
-            'booking_details',
+            'order_id',
+            'booking_id',
             'total',
             'discount',
             'discounted_amount',
@@ -38,24 +33,37 @@ class BillSerializer(serializers.ModelSerializer):
             'modified_by'
         ]
         read_only_fields = [
-            'bill_number', 
+            'id',
+            'bill_no',
+            'res_bill_no',
+            'hot_bill_no',
             'gst_bill_no',
+            'discounted_amount',
+            'room_sgst',
+            'room_cgst',
+            'order_sgst',
+            'order_cgst',
+            'service_sgst',
+            'service_cgst',
+            'sgst_amount',
+            'cgst_amount',
+            'net_amount',
             'created_at',
             'created_by',
             'modified_at',
             'modified_by'
         ]
 
-class BillPaymentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BillPayment
-        fields = [
-            'id',
-            'bill',
-            'amount',
-            'payment_method',
-            'payment_date',
-            'payment_details',
-            'created_by'
-        ]
-        read_only_fields = ['payment_date', 'created_by'] 
+    def to_representation(self, instance):
+        """Override to_representation to set non-applicable GST fields to null."""
+        representation = super().to_representation(instance)
+        
+        # Set non-applicable GST fields to null for RES type
+        if instance.bill_type == 'RES':
+            representation['room_sgst'] = None
+            representation['room_cgst'] = None
+            representation['service_sgst'] = None
+            representation['service_cgst'] = None
+        # For HOT type, all GST fields are applicable, so no need to set any to null
+
+        return representation
