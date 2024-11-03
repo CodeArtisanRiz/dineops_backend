@@ -76,6 +76,9 @@ class OrderSerializer(serializers.ModelSerializer):
         tables = validated_data.pop('tables', [])
         discount = validated_data.get('discount', Decimal('0.00'))
 
+        # Debugging: Log foreign key values
+        print(f"Creating order with tenant: {validated_data.get('tenant')}, customer: {validated_data.get('customer')}, room_id: {validated_data.get('room_id')}, booking_id: {validated_data.get('booking_id')}")
+
         # Create order
         order = Order.objects.create(
             **validated_data,
