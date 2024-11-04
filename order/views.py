@@ -13,6 +13,7 @@ from utils.get_or_create_user import get_or_create_user
 from hotel.models import Room, Booking, RoomBooking, CheckIn, CheckOut
 from decimal import Decimal
 from django.utils import timezone
+from foods.models import FoodItem
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -122,31 +123,39 @@ class OrderViewSet(viewsets.ModelViewSet):
     def update(self, request, pk=None, partial=False):
         try:
             with transaction.atomic():
+                logger.info(f"Starting update for order ID: {pk}")
                 order = get_object_or_404(self.get_queryset(), pk=pk)
                 data = request.data
+                logger.debug(f"Request data: {data}")
 
                 # Capture the original status before updating
                 original_status = order.status
+                logger.debug(f"Original order status: {original_status}")
 
-                # Update customer details
-                customer_id = get_or_create_user(
-                    username=data.get('phone', order.customer.phone) or data.get('email', order.customer.email),
-                    email=data.get('email', order.customer.email),
-                    first_name=data.get('first_name', order.customer.first_name),
-                    last_name=data.get('last_name', order.customer.last_name),
-                    role='customer',
-                    phone=data.get('phone', order.customer.phone),
-                    address_line_1=data.get('address_line_1', ''),
-                    address_line_2=data.get('address_line_2', ''),
-                    password=None,
-                    tenant=request.user.tenant
-                )
-                order.customer = User.objects.get(id=customer_id)
+                # Update customer details if provided
+                if 'phone' in data or 'email' in data:
+                    logger.info("Updating customer details")
+                    customer_id = get_or_create_user(
+                        username=data.get('phone', order.customer.phone) or data.get('email', order.customer.email),
+                        email=data.get('email', order.customer.email),
+                        first_name=data.get('first_name', order.customer.first_name),
+                        last_name=data.get('last_name', order.customer.last_name),
+                        role='customer',
+                        phone=data.get('phone', order.customer.phone),
+                        address_line_1=data.get('address_line_1', ''),
+                        address_line_2=data.get('address_line_2', ''),
+                        password=None,
+                        tenant=request.user.tenant
+                    )
+                    order.customer = User.objects.get(id=customer_id)
+                    logger.debug(f"Updated customer ID: {customer_id}")
 
                 # Handle table updates if 'tables' is in the request data
                 if 'tables' in data:
+                    logger.info("Updating tables")
                     table_ids = data.get('tables', [])
                     if not table_ids:
+                        logger.warning("No tables provided for dine-in order")
                         return Response({"error": "At least one table is required for dine-in orders."}, status=status.HTTP_400_BAD_REQUEST)
 
                     # Free previously occupied tables
@@ -154,27 +163,65 @@ class OrderViewSet(viewsets.ModelViewSet):
                         previous_table.occupied = False
                         previous_table.order = None
                         previous_table.save()
+                        logger.debug(f"Freed table ID: {previous_table.id}")
 
                     # Assign new tables
                     tables = []
                     for table_id in table_ids:
                         table = get_object_or_404(Table, pk=table_id)
                         if table.occupied:
+                            logger.warning(f"Table {table_id} is already occupied")
                             return Response({"error": f"Table {table_id} is already occupied."}, status=status.HTTP_400_BAD_REQUEST)
                         table.occupied = True
                         table.order = order.id
                         table.save()
                         tables.append(table)
-                    order.tables.set(tables)  # Use set() to update the many-to-many relationship
+                        logger.debug(f"Assigned table ID: {table_id}")
+                    
+                    # Clear previous tables and set new ones
+                    order.tables.set(tables)
+                    logger.debug(f"Updated tables: {table_ids}")
 
-                # Update order fields
+                # Handle food_items updates if 'food_items' is in the request data
+                if 'food_items' in data:
+                    logger.info("Updating food items")
+                    food_item_ids = data.get('food_items', [])
+                    if not food_item_ids:
+                        logger.warning("No food items provided")
+                        return Response({"error": "At least one food item is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # Check if all food items exist
+                    existing_food_items = FoodItem.objects.filter(id__in=food_item_ids)
+                    existing_ids = set(existing_food_items.values_list('id', flat=True))
+                    missing_ids = set(food_item_ids) - existing_ids
+
+                    if missing_ids:
+                        logger.error(f"Food items not found: {missing_ids}")
+                        return Response({"error": f"Food items with IDs {missing_ids} not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # Clear previous food items and set new ones
+                    order.food_items.set(existing_food_items)
+                    logger.debug(f"Updated food items: {food_item_ids}")
+
+                # Update quantity if provided
+                if 'quantity' in data:
+                    quantity = data.get('quantity', [])
+                    if len(quantity) != len(order.food_items.all()):
+                        logger.warning("Mismatch between number of food_items[] and quantity[]")
+                        return Response({"error": "The number of items in food_items[] and quantity[] must match."}, status=status.HTTP_400_BAD_REQUEST)
+                    order.quantity = quantity
+                    logger.debug(f"Updated quantity: {quantity}")
+
+                # Update other order fields
                 for attr, value in data.items():
-                    if hasattr(order, attr):
+                    if hasattr(order, attr) and attr not in ['tables', 'food_items', 'quantity']:
                         setattr(order, attr, value)
+                        logger.debug(f"Updated {attr} to {value}")
 
                 # Special handling for 'kot' status
                 if data.get('status') == 'kot':
                     order.kot_count += 1
+                    logger.debug(f"Incremented KOT count to {order.kot_count}")
 
                 # Free tables if the status changes to 'billed', 'settled', or 'cancelled'
                 if order.status in ['billed', 'settled', 'cancelled'] and original_status != order.status:
@@ -182,18 +229,20 @@ class OrderViewSet(viewsets.ModelViewSet):
                         table.occupied = False
                         table.order = None
                         table.save()
+                        logger.debug(f"Freed table ID: {table.id} due to status change")
 
                 # Update modified_at and modified_by
                 order.modified_at.append(timezone.now().isoformat())
                 order.modified_by.append(request.user.id)
+                logger.debug(f"Updated modified_at and modified_by")
 
                 # Calculate totals and save
-                order.calculate_totals()
                 order.save()
+                logger.info(f"Order ID {pk} updated successfully")
 
                 serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
-            logger.exception(f"Error updating order: {e}")
+            logger.exception(f"Error updating order ID {pk}: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
