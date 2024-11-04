@@ -134,14 +134,42 @@ class BillViewSet(viewsets.ModelViewSet):
                             f"Orders Total: {order_total}, Discounted: {order_discounted_total}, SGST: {order_sgst}, CGST: {order_cgst}\n"
                             f"Overall Total: {total}, Discounted Total: {discounted_total}, Net Total: {net_total}")
 
+            elif bill_type == 'RES':
+                # Calculate order totals for RES
+                try:
+                    order = Order.objects.get(id=order_id, tenant=tenant)
+                    order_total = order.total
+                    order_discounted_total = order_total - min(order_discount, order_total)
+                    order_sgst = round(order_discounted_total * (tenant.restaurant_sgst / 100), 2)
+                    order_cgst = round(order_discounted_total * (tenant.restaurant_cgst / 100), 2)
+                    order_net_total = order_discounted_total + order_sgst + order_cgst
+
+                    order_details.append({
+                        'order_id': order.id,
+                        'total': order.total,
+                        'cgst': order_cgst,
+                        'sgst': order_sgst
+                    })
+
+                    # Log the detailed breakdown for RES
+                    logger.info(f"Order {order.id}: Total {order.total}, Discounted: {order_discounted_total}, SGST: {order_sgst}, CGST: {order_cgst}")
+
+                    # Sum up all totals
+                    total = order_total
+                    discounted_total = order_discounted_total
+                    net_total = order_net_total
+
+                except Order.DoesNotExist:
+                    return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
             # Generate bill numbers
             bill_no, res_bill_no, hot_bill_no = BillingService.generate_bill_numbers(tenant, bill_type)
 
             # Create bill
             bill = Bill.objects.create(
                 tenant=tenant,
-                order_id=None,  # No single order_id for HOT type
-                booking_id=Booking.objects.get(id=booking_id, tenant=tenant),
+                order_id=order if bill_type == 'RES' else None,
+                booking_id=Booking.objects.get(id=booking_id, tenant=tenant) if bill_type == 'HOT' else None,
                 total=total,
                 discount=room_discount + order_discount + service_discount,  # Total discount for record-keeping
                 discounted_amount=discounted_total,
@@ -155,14 +183,14 @@ class BillViewSet(viewsets.ModelViewSet):
                 service_sgst=service_sgst,
                 service_cgst=service_cgst,
                 bill_no=bill_no,
-                res_bill_no=None,
-                hot_bill_no=hot_bill_no,
+                res_bill_no=res_bill_no if bill_type == 'RES' else None,
+                hot_bill_no=hot_bill_no if bill_type == 'HOT' else None,
                 bill_type=bill_type,
                 created_by=request.user
             )
 
             # Generate GST bill number
-            bill.gst_bill_no = BillingService.generate_gst_bill_no(bill_type, bill_no, hot_bill_no)
+            bill.gst_bill_no = BillingService.generate_gst_bill_no(bill_type, bill_no, hot_bill_no if bill_type == 'HOT' else res_bill_no)
             
             bill.save()
 
@@ -175,7 +203,5 @@ class BillViewSet(viewsets.ModelViewSet):
 
             return Response(response_data, status=status.HTTP_201_CREATED)
 
-        except Order.DoesNotExist:
-            return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
         except Booking.DoesNotExist:
             return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
