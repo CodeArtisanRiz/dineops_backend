@@ -861,7 +861,8 @@ class ServiceUsageViewSet(viewsets.ViewSet):
         user = self.request.user
         if user.is_superuser:
             return ServiceUsage.objects.all()
-        return ServiceUsage.objects.filter(tenant=user.tenant)
+        # Filter ServiceUsage by the tenant of the booking
+        return ServiceUsage.objects.filter(room_id__booking__tenant=user.tenant)
 
     def list(self, request):
         queryset = self.get_queryset()
@@ -883,6 +884,21 @@ class ServiceUsageViewSet(viewsets.ViewSet):
                 {"error": f"Cannot add disabled service: {service.name} with ID {service_id}"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Validate room's check-in and check-out status
+        room_booking_id = request.data.get('room_id')
+        room_booking = get_object_or_404(RoomBooking, id=room_booking_id)
+        check_in_details = CheckIn.objects.filter(room_booking=room_booking).first()
+        check_out_date = CheckOut.objects.filter(room_booking=room_booking).first()
+
+        if not check_in_details or check_out_date:
+            return Response(
+                {"error": "Service usage can only be added if the room is checked in and not checked out."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Automatically set the usage_date to now
+        request.data['usage_date'] = timezone.now()
 
         serializer = ServiceUsageSerializer(data=request.data)
         if serializer.is_valid():
