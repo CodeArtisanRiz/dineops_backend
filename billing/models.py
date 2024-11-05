@@ -35,6 +35,7 @@ class Bill(models.Model):
     bill_no = models.IntegerField(null=True, blank=True)
     gst_bill_no = models.CharField(max_length=100, null=True, blank=True)
     bill_type = models.CharField(max_length=3, choices=BILL_TYPE_CHOICES)
+    customer_gst = models.CharField(max_length=15, null=True, blank=True)
     
     # Order or Booking reference
     order_id = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True)
@@ -64,6 +65,7 @@ class Bill(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)
+
 
 
 

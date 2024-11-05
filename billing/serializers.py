@@ -11,6 +11,7 @@ class BillSerializer(serializers.ModelSerializer):
             'res_bill_no',
             'hot_bill_no',
             'gst_bill_no',
+            'customer_gst',
             'bill_type',
             'order_id',
             'booking_id',
@@ -30,7 +31,7 @@ class BillSerializer(serializers.ModelSerializer):
             'created_at',
             'created_by',
             'modified_at',
-            'modified_by'
+            'modified_by',
         ]
         read_only_fields = [
             'id',
@@ -51,7 +52,7 @@ class BillSerializer(serializers.ModelSerializer):
             'created_at',
             'created_by',
             'modified_at',
-            'modified_by'
+            'modified_by',
         ]
 
     def to_representation(self, instance):

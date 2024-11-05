@@ -25,6 +25,7 @@ class BillViewSet(viewsets.ModelViewSet):
         order_discount = Decimal(data.get('order_discount', '0.00'))
         service_discount = Decimal(data.get('service_discount', '0.00'))
         bill_type = data.get('bill_type')
+        customer_gst = data.get('customer_gst', None)
 
         # Validate bill_type
         if bill_type not in ['HOT', 'RES']:
@@ -191,7 +192,8 @@ class BillViewSet(viewsets.ModelViewSet):
                 res_bill_no=res_bill_no if bill_type == 'RES' else None,
                 hot_bill_no=hot_bill_no if bill_type == 'HOT' else None,
                 bill_type=bill_type,
-                created_by=request.user
+                created_by=request.user,
+                customer_gst=customer_gst
             )
 
             # Generate GST bill number
