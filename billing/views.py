@@ -59,6 +59,11 @@ class BillViewSet(viewsets.ModelViewSet):
                 for room_booking in room_bookings:
                     check_out = CheckOut.objects.filter(room_booking=room_booking).first()
                     check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+
+                    # Check if check_out is None or check_out_date is None
+                    if not check_out or not check_out.check_out_date:
+                        return Response({"error": f"Room with ID {room_booking.room.id} not checked out yet."}, status=status.HTTP_400_BAD_REQUEST)
+
                     days_stayed = (check_out.check_out_date - check_in.check_in_date).days
                     room_price_total = room_booking.room.price * days_stayed
                     room_total += room_price_total
@@ -205,3 +210,79 @@ class BillViewSet(viewsets.ModelViewSet):
 
         except Booking.DoesNotExist:
             return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        response_data = serializer.data
+
+        # Initialize details lists
+        room_details = []
+        service_details = []
+        order_details = []
+
+        if instance.bill_type == 'HOT':
+            # Fetch room details
+            room_bookings = RoomBooking.objects.filter(booking_id=instance.booking_id)
+            for room_booking in room_bookings:
+                check_out = CheckOut.objects.filter(room_booking=room_booking).first()
+                check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+                days_stayed = (check_out.check_out_date - check_in.check_in_date).days
+                room_price_total = room_booking.room.price * days_stayed
+                room_sgst_amount = round(room_price_total * (instance.tenant.hotel_sgst_lower / 100), 2)
+                room_cgst_amount = round(room_price_total * (instance.tenant.hotel_cgst_lower / 100), 2)
+                room_details.append({
+                    'room_id': room_booking.room.id,
+                    'room_price': room_booking.room.price,
+                    'days_stayed': days_stayed,
+                    'total': room_price_total,
+                    'cgst': room_cgst_amount,
+                    'sgst': room_sgst_amount
+                })
+
+            # Fetch service details
+            service_usages = ServiceUsage.objects.filter(booking_id=instance.booking_id)
+            for service_usage in service_usages:
+                service_price = service_usage.service_id.price
+                service_sgst_amount = round(service_price * (instance.tenant.service_sgst_lower / 100), 2)
+                service_cgst_amount = round(service_price * (instance.tenant.service_cgst_lower / 100), 2)
+                service_details.append({
+                    'room_id': service_usage.room_id.id,
+                    'service_id': service_usage.service_id.id,
+                    'service_name': service_usage.service_id.name,
+                    'price': service_price,
+                    'cgst': service_cgst_amount,
+                    'sgst': service_sgst_amount
+                })
+
+            # Fetch order details
+            orders = Order.objects.filter(booking_id=instance.booking_id, tenant=instance.tenant)
+            for order in orders:
+                order_sgst_amount = round(order.total * (instance.tenant.restaurant_sgst / 100), 2)
+                order_cgst_amount = round(order.total * (instance.tenant.restaurant_cgst / 100), 2)
+                order_details.append({
+                    'order_id': order.id,
+                    'total': order.total,
+                    'cgst': order_cgst_amount,
+                    'sgst': order_sgst_amount
+                })
+
+        elif instance.bill_type == 'RES':
+            # Fetch order details for RES
+            if instance.order_id:
+                order = instance.order_id
+                order_sgst_amount = round(order.total * (instance.tenant.restaurant_sgst / 100), 2)
+                order_cgst_amount = round(order.total * (instance.tenant.restaurant_cgst / 100), 2)
+                order_details.append({
+                    'order_id': order.id,
+                    'total': order.total,
+                    'cgst': order_cgst_amount,
+                    'sgst': order_sgst_amount
+                })
+
+        # Add details to response
+        response_data['room_details'] = room_details
+        response_data['service_details'] = service_details
+        response_data['order_details'] = order_details
+
+        return Response(response_data)
