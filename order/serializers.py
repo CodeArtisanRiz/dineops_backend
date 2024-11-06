@@ -124,20 +124,24 @@ class OrderSerializer(serializers.ModelSerializer):
         
         # Retrieve the original order from the context
         food_items_order = self.context.get('food_items_order', [])
-        quantities_order = self.context.get('quantity_order', [])
         
         # Sort the food_items based on the original order
         food_items = list(instance.food_items.all())
-        food_items_sorted = sorted(food_items, key=lambda x: food_items_order.index(x.id) if x.id in food_items_order else -1)
-        representation['food_items'] = [item.id for item in food_items_sorted]
-        
-        # Map quantities to sorted food_items
-        if quantities_order:
-            sorted_quantities = [quantities_order[food_items_order.index(item.id)] for item in food_items_sorted if item.id in food_items_order]
+        if food_items_order:
+            # Sort food_items based on the order in the context
+            food_items_sorted = sorted(food_items, key=lambda x: food_items_order.index(x.id) if x.id in food_items_order else -1)
+            representation['food_items'] = [item.id for item in food_items_sorted]
+            
+            # Map quantities to sorted food_items
+            sorted_quantities = [instance.quantity[food_items.index(item)] for item in food_items_sorted]
+            representation['quantity'] = sorted_quantities
         else:
-            # Fallback to instance quantity if context is not provided
-            sorted_quantities = instance.quantity
-        
-        representation['quantity'] = sorted_quantities
+            # Fallback to default order if context is not provided
+            food_items_sorted = sorted(food_items, key=lambda x: x.id)
+            representation['food_items'] = [item.id for item in food_items_sorted]
+            
+            # Rearrange quantities based on sorted food_items
+            sorted_quantities = [instance.quantity[food_items.index(item)] for item in food_items_sorted]
+            representation['quantity'] = sorted_quantities
         
         return representation

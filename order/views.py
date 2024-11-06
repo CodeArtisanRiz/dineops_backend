@@ -74,6 +74,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                 elif order_type not in ['take_away', 'delivery', 'online']:
                     return Response({"error": "Invalid order type."}, status=status.HTTP_400_BAD_REQUEST)
 
+                # Sort food_items and quantities
+                food_items = data.get('food_items', [])
+                quantities = data.get('quantity', [])
+                sorted_pairs = sorted(zip(food_items, quantities), key=lambda x: x[0])
+                sorted_food_items, sorted_quantities = zip(*sorted_pairs) if sorted_pairs else ([], [])
+
                 # Create order
                 order = Order(
                     tenant=tenant,
@@ -81,7 +87,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     notes=data.get('notes', ''),
                     status='in_progress',
                     order_type=order_type,
-                    quantity=data.get('quantity', []),
+                    quantity=list(sorted_quantities),
                     room_id=room,
                     booking_id=booking
                 )
@@ -90,22 +96,16 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.save()
 
                 # Set many-to-many relationships
-                order.food_items.set(data.get('food_items'))
+                order.food_items.set(sorted_food_items)
                 order.tables.set(tables)
                 order.kot_count = data.get('kot_count', 0)
 
                 # Calculate totals
                 total = Decimal('0.00')
-                food_items = order.food_items.all()
-                quantities = data.get('quantity', [])
-
-                if food_items and quantities and len(food_items) == len(quantities):
-                    # Sort food_items based on the order in the payload
-                    food_items_sorted = sorted(food_items, key=lambda x: data['food_items'].index(x.id))
-                    for food_item, qty in zip(food_items_sorted, quantities):
-                        item_price = Decimal(str(food_item.price))
-                        item_qty = Decimal(str(qty))
-                        total += item_price * item_qty
+                for food_item, qty in zip(order.food_items.all(), order.quantity):
+                    item_price = Decimal(str(food_item.price))
+                    item_qty = Decimal(str(qty))
+                    total += item_price * item_qty
 
                 order.total = total
                 order.save()
@@ -115,8 +115,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                     table.order = order.id
                     table.save()
 
-                # Pass the original order to the serializer context
-                serializer = OrderSerializer(order, context={'food_items_order': data.get('food_items'), 'quantity_order': data.get('quantity')})
+                serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -202,12 +201,18 @@ class OrderViewSet(viewsets.ModelViewSet):
                         logger.error(f"Food items not found: {missing_ids}")
                         return Response({"error": f"Food items with IDs {missing_ids} not found."}, status=status.HTTP_400_BAD_REQUEST)
 
+                    # Sort food_items and quantities
+                    quantities = data.get('quantity', [])
+                    sorted_pairs = sorted(zip(food_item_ids, quantities), key=lambda x: x[0])
+                    sorted_food_items, sorted_quantities = zip(*sorted_pairs) if sorted_pairs else ([], [])
+
                     # Clear previous food items and set new ones
-                    order.food_items.set(existing_food_items)
-                    logger.debug(f"Updated food items: {food_item_ids}")
+                    order.food_items.set(sorted_food_items)
+                    order.quantity = list(sorted_quantities)
+                    logger.debug(f"Updated food items: {sorted_food_items}")
 
                 # Update quantity if provided
-                if 'quantity' in data:
+                if 'quantity' in data and not 'food_items' in data:
                     quantity = data.get('quantity', [])
                     if len(quantity) != len(order.food_items.all()):
                         logger.warning("Mismatch between number of food_items[] and quantity[]")
@@ -241,23 +246,16 @@ class OrderViewSet(viewsets.ModelViewSet):
 
                 # Calculate totals and save
                 total = Decimal('0.00')
-                food_items = order.food_items.all()
-                quantities = data.get('quantity', [])
-
-                if food_items and quantities and len(food_items) == len(quantities):
-                    # Sort food_items based on the order in the payload
-                    food_items_sorted = sorted(food_items, key=lambda x: data['food_items'].index(x.id))
-                    for food_item, qty in zip(food_items_sorted, quantities):
-                        item_price = Decimal(str(food_item.price))
-                        item_qty = Decimal(str(qty))
-                        total += item_price * item_qty
+                for food_item, qty in zip(order.food_items.all(), order.quantity):
+                    item_price = Decimal(str(food_item.price))
+                    item_qty = Decimal(str(qty))
+                    total += item_price * item_qty
 
                 order.total = total
                 order.save()
                 logger.info(f"Order ID {pk} updated successfully")
 
-                # Pass the original order to the serializer context
-                serializer = OrderSerializer(order, context={'food_items_order': data.get('food_items'), 'quantity_order': data.get('quantity')})
+                serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:
