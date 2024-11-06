@@ -113,7 +113,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     table.order = order.id
                     table.save()
 
-                serializer = OrderSerializer(order)
+                # Pass the original order to the serializer context
+                serializer = OrderSerializer(order, context={'food_items_order': data.get('food_items'), 'quantity_order': data.get('quantity')})
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
@@ -240,7 +241,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                 order.save()
                 logger.info(f"Order ID {pk} updated successfully")
 
-                serializer = OrderSerializer(order)
+                # Pass the original order to the serializer context
+                serializer = OrderSerializer(order, context={'food_items_order': data.get('food_items'), 'quantity_order': data.get('quantity')})
                 return Response(serializer.data, status=status.HTTP_200_OK)
 
         except Exception as e:

@@ -118,3 +118,20 @@ class OrderSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        
+        # Retrieve the original order from the context
+        food_items_order = self.context.get('food_items_order', [])
+        quantities_order = self.context.get('quantity_order', [])
+        
+        # Sort the food_items based on the original order
+        food_items = list(instance.food_items.all())
+        food_items_sorted = sorted(food_items, key=lambda x: food_items_order.index(x.id) if x.id in food_items_order else -1)
+        representation['food_items'] = [item.id for item in food_items_sorted]
+        
+        # Assuming quantities are in the same order as food_items
+        representation['quantity'] = quantities_order
+        
+        return representation
