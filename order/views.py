@@ -97,10 +97,12 @@ class OrderViewSet(viewsets.ModelViewSet):
                 # Calculate totals
                 total = Decimal('0.00')
                 food_items = order.food_items.all()
-                quantities = order.quantity
+                quantities = data.get('quantity', [])
 
                 if food_items and quantities and len(food_items) == len(quantities):
-                    for food_item, qty in zip(food_items, quantities):
+                    # Sort food_items based on the order in the payload
+                    food_items_sorted = sorted(food_items, key=lambda x: data['food_items'].index(x.id))
+                    for food_item, qty in zip(food_items_sorted, quantities):
                         item_price = Decimal(str(food_item.price))
                         item_qty = Decimal(str(qty))
                         total += item_price * item_qty
@@ -238,6 +240,19 @@ class OrderViewSet(viewsets.ModelViewSet):
                 logger.debug(f"Updated modified_at and modified_by")
 
                 # Calculate totals and save
+                total = Decimal('0.00')
+                food_items = order.food_items.all()
+                quantities = data.get('quantity', [])
+
+                if food_items and quantities and len(food_items) == len(quantities):
+                    # Sort food_items based on the order in the payload
+                    food_items_sorted = sorted(food_items, key=lambda x: data['food_items'].index(x.id))
+                    for food_item, qty in zip(food_items_sorted, quantities):
+                        item_price = Decimal(str(food_item.price))
+                        item_qty = Decimal(str(qty))
+                        total += item_price * item_qty
+
+                order.total = total
                 order.save()
                 logger.info(f"Order ID {pk} updated successfully")
 

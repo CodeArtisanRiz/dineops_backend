@@ -131,7 +131,8 @@ class OrderSerializer(serializers.ModelSerializer):
         food_items_sorted = sorted(food_items, key=lambda x: food_items_order.index(x.id) if x.id in food_items_order else -1)
         representation['food_items'] = [item.id for item in food_items_sorted]
         
-        # Assuming quantities are in the same order as food_items
-        representation['quantity'] = quantities_order
+        # Map quantities to sorted food_items
+        sorted_quantities = [quantities_order[food_items_order.index(item.id)] for item in food_items_sorted if item.id in food_items_order]
+        representation['quantity'] = sorted_quantities
         
         return representation
