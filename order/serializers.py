@@ -132,7 +132,12 @@ class OrderSerializer(serializers.ModelSerializer):
         representation['food_items'] = [item.id for item in food_items_sorted]
         
         # Map quantities to sorted food_items
-        sorted_quantities = [quantities_order[food_items_order.index(item.id)] for item in food_items_sorted if item.id in food_items_order]
+        if quantities_order:
+            sorted_quantities = [quantities_order[food_items_order.index(item.id)] for item in food_items_sorted if item.id in food_items_order]
+        else:
+            # Fallback to instance quantity if context is not provided
+            sorted_quantities = instance.quantity
+        
         representation['quantity'] = sorted_quantities
         
         return representation
