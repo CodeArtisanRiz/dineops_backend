@@ -885,9 +885,14 @@ class ServiceUsageViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Get room_id and booking_id from the request data
+        room_id = request.data.get('room_id')
+        booking_id = request.data.get('booking_id')
+
+        # Find the corresponding RoomBooking instance
+        room_booking = get_object_or_404(RoomBooking, room_id=room_id, booking_id=booking_id)
+
         # Validate room's check-in and check-out status
-        room_booking_id = request.data.get('room_id')
-        room_booking = get_object_or_404(RoomBooking, id=room_booking_id)
         check_in_details = CheckIn.objects.filter(room_booking=room_booking).first()
         check_out_date = CheckOut.objects.filter(room_booking=room_booking).first()
 
@@ -897,13 +902,21 @@ class ServiceUsageViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Automatically set the usage_date to now
-        request.data['usage_date'] = timezone.now()
+        # Prepare data for ServiceUsage creation
+        service_usage_data = {
+            'booking_id': booking_id,
+            'room_id': room_booking.id,  # Use RoomBooking ID for the ServiceUsage
+            'service_id': service_id,
+            'usage_date': timezone.now()
+        }
 
-        serializer = ServiceUsageSerializer(data=request.data)
+        serializer = ServiceUsageSerializer(data=service_usage_data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            service_usage = serializer.save()
+            response_data = serializer.data
+            response_data['room_id'] = room_id  # Return the original room_id in the response
+            # response_data['room_booking_id'] = room_booking.id  # Include RoomBooking ID in the response
+            return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def update(self, request, pk=None):
