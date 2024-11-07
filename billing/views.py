@@ -9,6 +9,7 @@ from hotel.models import Booking, RoomBooking, CheckOut, CheckIn
 from decimal import Decimal
 from hotel.models import ServiceUsage
 import logging
+from datetime import datetime, time
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,7 @@ class BillViewSet(viewsets.ModelViewSet):
         service_discount = Decimal(data.get('service_discount', '0.00'))
         bill_type = data.get('bill_type')
         customer_gst = data.get('customer_gst', None)
+        day_calculation_method = data.get('day_calculation_method', 'hotel_standard')  # Default to 'hotel_standard' if not provided
 
         # Validate bill_type
         if bill_type not in ['HOT', 'RES']:
@@ -65,7 +67,27 @@ class BillViewSet(viewsets.ModelViewSet):
                     if not check_out or not check_out.check_out_date:
                         return Response({"error": f"Room with ID {room_booking.room.id} not checked out yet."}, status=status.HTTP_400_BAD_REQUEST)
 
-                    days_stayed = (check_out.check_out_date - check_in.check_in_date).days
+                    # Ensure check_in_date and check_out_date are datetime objects
+                    check_in_date = check_in.check_in_date
+                    check_out_date = check_out.check_out_date
+
+                    # Check if check_in_date and check_out_date are datetime objects
+                    if not isinstance(check_in_date, datetime) or not isinstance(check_out_date, datetime):
+                        return Response({"error": "Invalid check-in or check-out date."}, status=status.HTTP_400_BAD_REQUEST)
+
+                    # Calculate days stayed based on the selected method
+                    if day_calculation_method == 'hotel_standard':
+                        # Hotel standard logic
+                        days_stayed = (check_out_date - check_in_date).days
+                        if check_out_date.time() > time(12, 0, 0):
+                            days_stayed += 1
+                    elif day_calculation_method == '24h_basis':
+                        # 24h basis logic
+                        total_hours = (check_out_date - check_in_date).total_seconds() / 3600
+                        days_stayed = int(total_hours // 24) + (1 if total_hours % 24 > 0 else 0)
+                    else:
+                        return Response({"error": "Invalid day calculation method."}, status=status.HTTP_400_BAD_REQUEST)
+
                     room_price_total = room_booking.room.price * days_stayed
                     room_total += room_price_total
                     room_sgst_amount = round(room_price_total * (tenant.hotel_sgst_lower / 100), 2)
