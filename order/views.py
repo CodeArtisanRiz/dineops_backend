@@ -127,6 +127,11 @@ class OrderViewSet(viewsets.ModelViewSet):
             with transaction.atomic():
                 logger.info(f"Starting update for order ID: {pk}")
                 order = get_object_or_404(self.get_queryset(), pk=pk)
+                
+                # Prevent updates if the order status is 'served'
+                if order.status == 'served':
+                    return Response({"error": "Order already served and cannot be updated."}, status=status.HTTP_400_BAD_REQUEST)
+                
                 data = request.data
                 logger.debug(f"Request data: {data}")
 
