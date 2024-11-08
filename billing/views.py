@@ -41,6 +41,14 @@ class BillViewSet(viewsets.ModelViewSet):
         if bill_type == 'RES' and not order_id:
             return Response({"error": "Order ID is required for RES bill type."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Check for existing bills to prevent duplicates
+        if bill_type == 'RES':
+            if Bill.objects.filter(res_bill_no=order_id, tenant=tenant).exists():
+                return Response({"error": f"Bill already exists for order ID {order_id}."}, status=status.HTTP_400_BAD_REQUEST)
+        elif bill_type == 'HOT':
+            if Bill.objects.filter(hot_bill_no=booking_id, tenant=tenant).exists():
+                return Response({"error": f"Bill already exists for booking ID {booking_id}."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
             total = Decimal('0.00')
             discounted_total = Decimal('0.00')
