@@ -13,7 +13,7 @@ class Order(models.Model):
         ('on_hold', 'On Hold'),
         ('kot', 'Kot'),
         ('served', 'Served'),
-        ('billed', "Billed"),
+        # ('billed', "Billed"), // not required
         ('settled', "Setted"),
         ('cancelled', 'Cancelled')
 
