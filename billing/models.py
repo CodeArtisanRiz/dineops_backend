@@ -15,10 +15,10 @@ class Bill(models.Model):
     ]
     
     STATUS_CHOICES = [
+        ('cancelled', 'Cancelled'),
         ('unpaid', 'Unpaid'),
         ('paid', 'Paid'),
         ('partial', 'Partially Paid'),
-        ('cancelled', 'Cancelled'),
     ]
 
     PAYMENT_METHOD_CHOICES = [
@@ -60,7 +60,7 @@ class Bill(models.Model):
     net_amount = models.DecimalField(max_digits=10, decimal_places=2)
     
     # Status and tracking
-    status = models.CharField(max_length=20, default='unpaid')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='unpaid')
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     modified_at = models.JSONField(default=list, blank=True)
