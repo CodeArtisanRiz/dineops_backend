@@ -14,6 +14,7 @@ from hotel.models import Room, Booking, RoomBooking, CheckIn, CheckOut
 from decimal import Decimal
 from django.utils import timezone
 from foods.models import FoodItem
+from billing.models import Bill
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -128,12 +129,35 @@ class OrderViewSet(viewsets.ModelViewSet):
                 logger.info(f"Starting update for order ID: {pk}")
                 order = get_object_or_404(self.get_queryset(), pk=pk)
                 
+                # Log the current order status
+                logger.debug(f"Current order status: {order.status}")
+
                 # Prevent updates if the order status is 'served'
                 if order.status == 'served':
                     return Response({"error": "Order already served and cannot be updated."}, status=status.HTTP_400_BAD_REQUEST)
                 
                 data = request.data
                 logger.debug(f"Request data: {data}")
+
+                # Check if the order is associated with any bills
+                associated_bills = Bill.objects.filter(order_id=order.id)
+                if associated_bills.exists():
+                    logger.info(f"Found {associated_bills.count()} associated bills for order ID: {pk}")
+                    
+                    # Log the current status of the bills before updating
+                    for bill in associated_bills:
+                        logger.debug(f"Current status of bill ID {bill.id}: {bill.status}")
+                    
+                    # Update the status of associated bills to 'cancelled'
+                    updated_count = associated_bills.update(status='cancelled')
+                    
+                    # Log the updated status of the bills
+                    for bill in associated_bills:
+                        logger.debug(f"Updated status of bill ID {bill.id}: {bill.status}")
+                    
+                    logger.info(f"Updated status of {updated_count} bills to 'cancelled' for order ID: {pk}")
+                else:
+                    logger.info(f"No associated bills found for order ID: {pk}")
 
                 # Capture the original status before updating
                 original_status = order.status
