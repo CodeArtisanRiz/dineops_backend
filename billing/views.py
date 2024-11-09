@@ -10,6 +10,9 @@ from decimal import Decimal
 from hotel.models import ServiceUsage
 import logging
 from datetime import datetime, time
+from django.utils import timezone
+from .models import BillPayment
+from .serializers import BillPaymentSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -327,3 +330,198 @@ class BillViewSet(viewsets.ModelViewSet):
         response_data['order_details'] = order_details
 
         return Response(response_data)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        
+        # Only allow patch if bill is cancelled
+        if instance.status != 'cancelled':
+            return Response(
+                {"error": "Only cancelled bills can be regenerated"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Extract allowed fields from request data
+        allowed_fields = {
+            'room_discount', 'order_discount', 'service_discount',
+            'customer_gst', 'day_calculation_method'
+        }
+        data = {k: v for k, v in request.data.items() if k in allowed_fields}
+        
+        try:
+            # Convert discount values to Decimal
+            room_discount = Decimal(data.get('room_discount', '0.00'))
+            order_discount = Decimal(data.get('order_discount', '0.00'))
+            service_discount = Decimal(data.get('service_discount', '0.00'))
+            customer_gst = data.get('customer_gst')
+            day_calculation_method = data.get('day_calculation_method', 'hotel_standard')
+
+            # Initialize variables
+            total = Decimal('0.00')
+            discounted_total = Decimal('0.00')
+            net_total = Decimal('0.00')
+            order_sgst = Decimal('0.00')
+            order_cgst = Decimal('0.00')
+            room_sgst = Decimal('0.00')
+            room_cgst = Decimal('0.00')
+            service_sgst = Decimal('0.00')
+            service_cgst = Decimal('0.00')
+            room_details = []
+            service_details = []
+            order_details = []
+
+            # Recalculate totals based on bill type
+            if instance.bill_type == 'HOT':
+                # Calculate room totals
+                room_bookings = RoomBooking.objects.filter(booking_id=instance.booking_id)
+                room_total = Decimal('0.00')
+                for room_booking in room_bookings:
+                    check_out = CheckOut.objects.filter(room_booking=room_booking).first()
+                    check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+
+                    # Calculate days stayed based on the selected method
+                    if day_calculation_method == 'hotel_standard':
+                        days_stayed = (check_out.check_out_date - check_in.check_in_date).days
+                        if check_out.check_out_date.time() > time(12, 0, 0):
+                            days_stayed += 1
+                    else:  # 24h_basis
+                        total_hours = (check_out.check_out_date - check_in.check_in_date).total_seconds() / 3600
+                        days_stayed = int(total_hours // 24) + (1 if total_hours % 24 > 0 else 0)
+
+                    room_price_total = room_booking.room.price * days_stayed
+                    room_total += room_price_total
+                    room_sgst_amount = round(room_price_total * (instance.tenant.hotel_sgst_lower / 100), 2)
+                    room_cgst_amount = round(room_price_total * (instance.tenant.hotel_cgst_lower / 100), 2)
+                    room_details.append({
+                        'room_id': room_booking.room.id,
+                        'room_price': room_booking.room.price,
+                        'days_stayed': days_stayed,
+                        'total': room_price_total,
+                        'cgst': room_cgst_amount,
+                        'sgst': room_sgst_amount
+                    })
+
+                room_discounted_total = room_total - min(room_discount, room_total)
+                room_sgst = round(room_discounted_total * (instance.tenant.hotel_sgst_lower / 100), 2)
+                room_cgst = round(room_discounted_total * (instance.tenant.hotel_cgst_lower / 100), 2)
+                room_net_total = room_discounted_total + room_sgst + room_cgst
+
+                # Calculate service totals
+                service_usages = ServiceUsage.objects.filter(booking_id=instance.booking_id)
+                service_total = Decimal('0.00')
+                for service_usage in service_usages:
+                    service_price = service_usage.service_id.price
+                    service_total += service_price
+                    service_sgst_amount = round(service_price * (instance.tenant.service_sgst_lower / 100), 2)
+                    service_cgst_amount = round(service_price * (instance.tenant.service_cgst_lower / 100), 2)
+                    service_details.append({
+                        'room_id': service_usage.room_id.id,
+                        'service_id': service_usage.service_id.id,
+                        'service_name': service_usage.service_id.name,
+                        'price': service_price,
+                        'cgst': service_cgst_amount,
+                        'sgst': service_sgst_amount
+                    })
+
+                service_discounted_total = service_total - min(service_discount, service_total)
+                service_sgst = round(service_discounted_total * (instance.tenant.service_sgst_lower / 100), 2)
+                service_cgst = round(service_discounted_total * (instance.tenant.service_cgst_lower / 100), 2)
+                service_net_total = service_discounted_total + service_sgst + service_cgst
+
+                # Calculate order totals
+                orders = Order.objects.filter(booking_id=instance.booking_id, tenant=instance.tenant)
+                order_total = Decimal('0.00')
+                for order in orders:
+                    order_total += order.total
+                    order_sgst_amount = round(order.total * (instance.tenant.restaurant_sgst / 100), 2)
+                    order_cgst_amount = round(order.total * (instance.tenant.restaurant_cgst / 100), 2)
+                    order_details.append({
+                        'order_id': order.id,
+                        'total': order.total,
+                        'cgst': order_cgst_amount,
+                        'sgst': order_sgst_amount
+                    })
+
+                order_discounted_total = order_total - min(order_discount, order_total)
+                order_sgst = round(order_discounted_total * (instance.tenant.restaurant_sgst / 100), 2)
+                order_cgst = round(order_discounted_total * (instance.tenant.restaurant_cgst / 100), 2)
+                order_net_total = order_discounted_total + order_sgst + order_cgst
+
+                # Sum up all totals
+                total = room_total + service_total + order_total
+                discounted_total = room_discounted_total + service_discounted_total + order_discounted_total
+                net_total = room_net_total + service_net_total + order_net_total
+
+            elif instance.bill_type == 'RES':
+                # Calculate order totals for RES
+                order = instance.order_id
+                order_total = order.total
+                order_discounted_total = order_total - min(order_discount, order_total)
+                order_sgst = round(order_discounted_total * (instance.tenant.restaurant_sgst / 100), 2)
+                order_cgst = round(order_discounted_total * (instance.tenant.restaurant_cgst / 100), 2)
+                order_net_total = order_discounted_total + order_sgst + order_cgst
+
+                order_details.append({
+                    'order_id': order.id,
+                    'total': order.total,
+                    'cgst': order_cgst,
+                    'sgst': order_sgst
+                })
+
+                # Set totals
+                total = order_total
+                discounted_total = order_discounted_total
+                net_total = order_net_total
+
+            # Update the instance with new calculations
+            instance.total = total
+            instance.discount = room_discount + order_discount + service_discount
+            instance.discounted_amount = discounted_total
+            instance.net_amount = net_total
+            instance.sgst_amount = order_sgst + room_sgst + service_sgst
+            instance.cgst_amount = order_cgst + room_cgst + service_cgst
+            instance.order_sgst = order_sgst
+            instance.order_cgst = order_cgst
+            instance.room_sgst = room_sgst
+            instance.room_cgst = room_cgst
+            instance.service_sgst = service_sgst
+            instance.service_cgst = service_cgst
+            instance.customer_gst = customer_gst
+            instance.status = 'unpaid'  # Reset status to unpaid after regeneration
+
+            # Add modification tracking
+            instance.modified_at.append(timezone.now().isoformat())
+            instance.modified_by.append(request.user.id)
+            
+            instance.save()
+
+            # Prepare response with details
+            serializer = self.get_serializer(instance)
+            response_data = serializer.data
+            response_data['room_details'] = room_details
+            response_data['service_details'] = service_details
+            response_data['order_details'] = order_details
+
+            return Response(response_data)
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+class BillPaymentViewSet(viewsets.ModelViewSet):
+    queryset = BillPayment.objects.all()
+    serializer_class = BillPaymentSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Save the payment and update the bill status
+        bill_payment = serializer.save(created_by=request.user)
+        
+        # Log the payment creation
+        logger.info(f"Payment created for Bill ID {bill_payment.bill_id.id} with amount {bill_payment.paid_amount}")
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

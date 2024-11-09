@@ -21,14 +21,6 @@ class Bill(models.Model):
         ('partial', 'Partially Paid'),
     ]
 
-    PAYMENT_METHOD_CHOICES = [
-        ('cash', 'Cash'),
-        ('card', 'Card'),
-        ('upi', 'UPI'),
-        ('net_banking', 'Net Banking'),
-        ('other', 'Other'),
-    ]
-
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     res_bill_no = models.IntegerField(null=True, blank=True)
     hot_bill_no = models.IntegerField(null=True, blank=True)
@@ -66,9 +58,6 @@ class Bill(models.Model):
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)
 
-
-
-
     class Meta:
         ordering = ['-created_at']
         
@@ -81,13 +70,28 @@ class Bill(models.Model):
 
 class BillPayment(models.Model):
     """Track individual payments against a bill"""
-    bill = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name='payments')
-    amount = models.DecimalField(
+
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('card', 'Card'),
+        ('upi', 'UPI'),
+        ('net_banking', 'Net Banking'),
+        ('other', 'Other'),
+    ]
+    bill_id = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name='payments', null=True, blank=True)
+    bill_amount = models.DecimalField(
         max_digits=10, 
         decimal_places=2,
         validators=[MinValueValidator(Decimal('0.00'))]
     )
-    payment_method = models.CharField(max_length=20, choices=Bill.PAYMENT_METHOD_CHOICES)
+    paid_amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        null=True,
+        blank=True
+    )
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
     payment_date = models.DateTimeField(auto_now_add=True)
     payment_details = models.JSONField(null=True, blank=True)
     created_by = models.ForeignKey(
@@ -98,19 +102,18 @@ class BillPayment(models.Model):
     )
 
     def save(self, *args, **kwargs):
+        payment_status = kwargs.pop('payment_status', 'partial')  # Default to 'partial' if not provided
         super().save(*args, **kwargs)
-        
-        # Update bill status based on payments
-        total_paid = self.bill.payments.aggregate(models.Sum('amount'))['amount__sum'] or 0
-        
-        if total_paid >= self.bill.net_amount:
-            self.bill.status = 'paid'
-        elif total_paid > 0:
-            self.bill.status = 'partial'
+        self.update_bill_status(payment_status)
+
+    def update_bill_status(self, payment_status):
+        # Use self.bill_id to access the related Bill object
+        if payment_status == 'paid':
+            self.bill_id.status = 'paid'
         else:
-            self.bill.status = 'unpaid'
-            
-        self.bill.save()
+            self.bill_id.status = 'partial'
+        
+        self.bill_id.save()
 
     def __str__(self):
-        return f"Payment of {self.amount} for {self.bill.bill_number}"
+        return f"Payment of {self.paid_amount} for {self.bill_id.bill_no}"
