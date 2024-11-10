@@ -78,7 +78,8 @@ class RoomViewSet(viewsets.ViewSet):
 
     def update(self, request, pk=None):
         user = self.request.user
-        if not user.is_superuser:
+        # Allow update if user is superuser, admin, or manager
+        if not (user.is_superuser or user.role in ['admin', 'manager']):
             raise PermissionDenied("You do not have permission to perform this action.")
 
         queryset = self.get_queryset()
@@ -116,6 +117,37 @@ class RoomViewSet(viewsets.ViewSet):
         room_number = room.room_number
         room.delete()
         return Response({"message": f"Room - {room_number} deleted"}, status=status.HTTP_204_NO_CONTENT)
+
+    def partial_update(self, request, pk=None):
+        user = self.request.user
+        # Allow update if user is superuser, admin, or manager
+        if not (user.is_superuser or user.role in ['admin', 'manager']):
+            raise PermissionDenied("You do not have permission to perform this action.")
+
+        queryset = self.get_queryset()
+        room = get_object_or_404(queryset, pk=pk)
+        tenant_name = user.tenant.tenant_name if not user.is_superuser else room.tenant.tenant_name
+
+        # Handle image file upload
+        image_urls = handle_image_upload(request, tenant_name, 'room', 'image')
+        if image_urls:
+            request.data._mutable = True  # Make request data mutable
+            request.data['image'] = json.dumps(image_urls)  # Convert list to JSON string
+            request.data._mutable = False  # Make request data immutable
+            logger.debug(f'Image URLs added to request data: {request.data["image"]}')
+        else:
+            logger.debug('No image URLs returned from handle_image_upload.')
+
+        serializer = RoomSerializer(room, data=request.data, partial=True)
+        if serializer.is_valid():
+            tenant_id = request.data.get('tenant')
+            if tenant_id:
+                tenant = get_object_or_404(Tenant, id=tenant_id)
+                serializer.save(tenant=tenant)
+            else:
+                serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ServiceCategoryViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated]
