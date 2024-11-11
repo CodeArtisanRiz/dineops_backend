@@ -110,6 +110,22 @@ class BillPayment(models.Model):
         # Use self.bill_id to access the related Bill object
         if payment_status == 'paid':
             self.bill_id.status = 'paid'
+            
+            if self.bill_id.bill_type == 'RES':
+                # Update the status of the related Order to 'settled'
+                order = self.bill_id.order_id
+                if order:
+                    order.status = 'settled'
+                    order.save()
+            
+            elif self.bill_id.bill_type == 'HOT':
+                # Update the status of all related Orders to 'settled'
+                booking = self.bill_id.booking_id
+                if booking:
+                    orders = Order.objects.filter(booking_id=booking.id)
+                    for order in orders:
+                        order.status = 'settled'
+                        order.save()
         else:
             self.bill_id.status = 'partial'
         
