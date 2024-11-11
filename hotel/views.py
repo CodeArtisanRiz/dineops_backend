@@ -937,7 +937,7 @@ class ServiceUsageViewSet(viewsets.ViewSet):
         # Prepare data for ServiceUsage creation
         service_usage_data = {
             'booking_id': booking_id,
-            'room_id': room_booking.id,  # Use RoomBooking ID for the ServiceUsage
+            'room_booking_id': room_booking.id,  # Use RoomBooking ID for the ServiceUsage
             'service_id': service_id,
             'usage_date': timezone.now()
         }
@@ -947,7 +947,6 @@ class ServiceUsageViewSet(viewsets.ViewSet):
             service_usage = serializer.save()
             response_data = serializer.data
             response_data['room_id'] = room_id  # Return the original room_id in the response
-            # response_data['room_booking_id'] = room_booking.id  # Include RoomBooking ID in the response
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

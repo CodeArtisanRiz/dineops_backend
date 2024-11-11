@@ -32,13 +32,13 @@ class RoomBookingSerializer(serializers.ModelSerializer):
         return CheckInDetailSerializer(check_in).data if check_in else None
 
     def get_service_usages(self, obj):
-        service_usages = ServiceUsage.objects.filter(room_id=obj.room.id, booking_id=obj.booking.id)
+        # Fetch ServiceUsage instances related to this RoomBooking
+        service_usages = ServiceUsage.objects.filter(room_id=obj, booking_id=obj.booking.id)
         return ServiceUsageSerializer(service_usages, many=True).data
 
     def get_orders(self, obj):
         # Ensure that the filtering is done using the correct fields
         orders = Order.objects.filter(booking_id=obj.booking.id, room_id=obj.room.id)
-        # , room_id=obj.room.id
         return OrderSerializer(orders, many=True).data
 
 class RoomSerializer(serializers.ModelSerializer):
@@ -136,14 +136,29 @@ class CheckOutSerializer(serializers.ModelSerializer):
         fields = ['id', 'room_booking', 'check_out_date', 'checked_out_by']
 
 class ServiceUsageSerializer(serializers.ModelSerializer):
-    service_name = serializers.SerializerMethodField()  # New field to include service name
+    service_name = serializers.SerializerMethodField()  # Existing field
+    room_booking_id = serializers.IntegerField(write_only=True)  # Accept room_booking_id as input
+    room_id = serializers.SerializerMethodField()  # New field for Room ID
 
     class Meta:
         model = ServiceUsage
-        fields = ['id', 'booking_id', 'room_id', 'service_id', 'service_name', 'usage_date']
+        fields = ['id', 'booking_id', 'room_booking_id', 'room_id', 'service_id', 'service_name', 'usage_date']
 
     def get_service_name(self, obj):
         return obj.service_id.name  # Fetch the name of the service
+
+    def get_room_id(self, obj):
+        return obj.room_id.room.id  # Fetch the room ID from the RoomBooking
+
+    def create(self, validated_data):
+        # Extract room_booking_id from validated_data
+        room_booking_id = validated_data.pop('room_booking_id')
+        # Fetch the RoomBooking instance
+        room_booking = RoomBooking.objects.get(id=room_booking_id)
+        # Assign the RoomBooking instance to room_id
+        validated_data['room_id'] = room_booking
+        # Create the ServiceUsage instance
+        return super().create(validated_data)
 
 class CheckInDetailSerializer(serializers.ModelSerializer):
     guests = GuestUserSerializer(many=True, read_only=True)
