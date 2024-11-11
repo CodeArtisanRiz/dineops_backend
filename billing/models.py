@@ -117,6 +117,12 @@ class BillPayment(models.Model):
                 if order:
                     order.status = 'settled'
                     order.save()
+                    
+                    # Free associated tables
+                    for table in order.tables.all():
+                        table.occupied = False
+                        table.order = None
+                        table.save()
             
             elif self.bill_id.bill_type == 'HOT':
                 # Update the status of all related Orders to 'settled'
@@ -126,6 +132,12 @@ class BillPayment(models.Model):
                     for order in orders:
                         order.status = 'settled'
                         order.save()
+                        
+                        # Free associated tables
+                        for table in order.tables.all():
+                            table.occupied = False
+                            table.order = None
+                            table.save()
         else:
             self.bill_id.status = 'partial'
         
