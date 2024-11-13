@@ -40,7 +40,7 @@ class BillViewSet(viewsets.ModelViewSet):
         service_discount = Decimal(data.get('service_discount', '0.00'))
         bill_type = data.get('bill_type')
         customer_gst = data.get('customer_gst', None)
-        day_calculation_method = data.get('day_calculation_method', 'hotel_standard')  # Default to 'hotel_standard' if not provided
+        day_calculation_method = data.get('day_calculation_method', 'hotel_standard')
 
         # Validate bill_type
         if bill_type not in ['HOT', 'RES']:
@@ -55,21 +55,28 @@ class BillViewSet(viewsets.ModelViewSet):
             return Response({"error": "Order ID is required for RES bill type."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check for existing bills based on bill_type
+        existing_bill = None
         if bill_type == 'RES' and order_id:
-            if Bill.objects.filter(order_id=order_id).count() > 0:
-                logger.error(f"Bill already exists for order ID {order_id}")
-                return Response(
-                    {"error": f"Bill already exists for order ID {order_id}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            existing_bill = Bill.objects.filter(order_id=order_id).first()
 
         if bill_type == 'HOT' and booking_id:
-            if Bill.objects.filter(booking_id=booking_id).count() > 0:
-                logger.error(f"Bill already exists for booking ID {booking_id}")
+            existing_bill = Bill.objects.filter(booking_id=booking_id).first()
+
+        if existing_bill:
+            if existing_bill.status == 'cancelled':
+                # Update the existing cancelled bill
+                bill = existing_bill
+                logger.info(f"Updating existing cancelled bill ID {bill.id}")
+            else:
+                # Bill exists and is not cancelled
+                logger.error(f"Bill already exists for order ID {order_id} or booking ID {booking_id} and is not cancelled")
                 return Response(
-                    {"error": f"Bill already exists for booking ID {booking_id}"},
+                    {"error": f"Bill already exists for order ID {order_id} or booking ID {booking_id} and is not cancelled"},
                     status=status.HTTP_400_BAD_REQUEST
                 )
+        else:
+            # Create a new bill
+            bill = Bill()
 
         try:
             total = Decimal('0.00')
@@ -220,45 +227,40 @@ class BillViewSet(viewsets.ModelViewSet):
                 except Order.DoesNotExist:
                     return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Generate bill numbers
-            bill_no, res_bill_no, hot_bill_no = BillingService.generate_bill_numbers(tenant, bill_type)
+            # Update or set bill fields
+            bill.total = total
+            bill.discount = room_discount + order_discount + service_discount
+            bill.discounted_amount = discounted_total
+            bill.net_amount = net_total
+            bill.sgst_amount = order_sgst + room_sgst + service_sgst
+            bill.cgst_amount = order_cgst + room_cgst + service_cgst
+            bill.order_sgst = order_sgst
+            bill.order_cgst = order_cgst
+            bill.room_sgst = room_sgst
+            bill.room_cgst = room_cgst
+            bill.service_sgst = service_sgst
+            bill.service_cgst = service_cgst
+            bill.status = 'unpaid'  # Reset status to unpaid after regeneration
 
-            # Create bill
-            bill = Bill.objects.create(
-                tenant=tenant,
-                order_id=order if bill_type == 'RES' else None,
-                booking_id=Booking.objects.get(id=booking_id, tenant=tenant) if bill_type == 'HOT' else None,
-                total=total,
-                discount=room_discount + order_discount + service_discount,  # Total discount for record-keeping
-                discounted_amount=discounted_total,
-                net_amount=net_total,
-                sgst_amount=order_sgst + room_sgst + service_sgst,
-                cgst_amount=order_cgst + room_cgst + service_cgst,
-                order_sgst=order_sgst,
-                order_cgst=order_cgst,
-                room_sgst=room_sgst,
-                room_cgst=room_cgst,
-                service_sgst=service_sgst,
-                service_cgst=service_cgst,
-                bill_no=bill_no,
-                res_bill_no=res_bill_no if bill_type == 'RES' else None,
-                hot_bill_no=hot_bill_no if bill_type == 'HOT' else None,
-                bill_type=bill_type,
-                created_by=request.user,
-                customer_gst=customer_gst
-            )
+            # Only set these fields if creating a new bill
+            if not existing_bill:
+                bill.tenant = tenant
+                bill.order_id = order if bill_type == 'RES' else None
+                bill.booking_id = Booking.objects.get(id=booking_id, tenant=tenant) if bill_type == 'HOT' else None
+                bill.bill_no, bill.res_bill_no, bill.hot_bill_no = BillingService.generate_bill_numbers(tenant, bill_type)
+                bill.gst_bill_no = BillingService.generate_gst_bill_no(bill_type, bill.bill_no, bill.hot_bill_no if bill_type == 'HOT' else bill.res_bill_no)
+                bill.bill_type = bill_type
+                bill.created_by = request.user
+                bill.customer_gst = customer_gst
 
-            # Generate GST bill number
-            bill.gst_bill_no = BillingService.generate_gst_bill_no(bill_type, bill_no, hot_bill_no if bill_type == 'HOT' else res_bill_no)
-            
             bill.save()
 
             # Serialize the bill and add room, service, and order details
             serializer = self.get_serializer(bill)
             response_data = serializer.data
-            response_data['room_details'] = room_details  # Add room details to the response
-            response_data['service_details'] = service_details  # Add service details to the response
-            response_data['order_details'] = order_details  # Add order details to the response
+            response_data['room_details'] = room_details
+            response_data['service_details'] = service_details
+            response_data['order_details'] = order_details
 
             return Response(response_data, status=status.HTTP_201_CREATED)
 
