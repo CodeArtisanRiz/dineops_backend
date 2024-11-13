@@ -20,15 +20,14 @@ class BillViewSet(viewsets.ModelViewSet):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
 
-    # def get_queryset(self):
-    #     # return Bill.objects.all()
-    #     return Bill.objects.filter(tenant=self.request.user.tenant).all()  
-    
-    def  get_queryset(self):
+    def get_queryset(self):
         user = self.request.user
+        # Check if the user is a superuser
         if user.is_superuser:
+            # Return all bills for superusers
             return Bill.objects.all()
-        return Bill.objects.filter(tenant=self.request.user.tenant).all()
+        # Return bills filtered by the tenant for regular users
+        return Bill.objects.filter(tenant=user.tenant)
 
     def create(self, request, *args, **kwargs):
         data = request.data
@@ -521,6 +520,87 @@ class BillViewSet(viewsets.ModelViewSet):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response_data = serializer.data
+            for bill_data in response_data:
+                bill = Bill.objects.get(id=bill_data['id'])
+                bill_data['room_details'] = self.get_room_details(bill)
+                bill_data['service_details'] = self.get_service_details(bill)
+                bill_data['order_details'] = self.get_order_details(bill)
+            return self.get_paginated_response(response_data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        response_data = serializer.data
+        for bill_data in response_data:
+            bill = Bill.objects.get(id=bill_data['id'])
+            bill_data['room_details'] = self.get_room_details(bill)
+            bill_data['service_details'] = self.get_service_details(bill)
+            bill_data['order_details'] = self.get_order_details(bill)
+        return Response(response_data)
+
+    def get_room_details(self, bill):
+        room_details = []
+        if bill.bill_type == 'HOT':
+            room_bookings = RoomBooking.objects.filter(booking_id=bill.booking_id)
+            for room_booking in room_bookings:
+                check_out = CheckOut.objects.filter(room_booking=room_booking).first()
+                check_in = CheckIn.objects.filter(room_booking=room_booking).first()
+                days_stayed = (check_out.check_out_date - check_in.check_in_date).days
+                room_price_total = room_booking.room.price * days_stayed
+                room_sgst_amount = round(room_price_total * (bill.tenant.hotel_sgst_lower / 100), 2)
+                room_cgst_amount = round(room_price_total * (bill.tenant.hotel_cgst_lower / 100), 2)
+                room_details.append({
+                    'room_id': room_booking.room.id,
+                    'room_price': room_booking.room.price,
+                    'days_stayed': days_stayed,
+                    'total': room_price_total,
+                    'cgst': room_cgst_amount,
+                    'sgst': room_sgst_amount
+                })
+        return room_details
+
+    def get_service_details(self, bill):
+        service_details = []
+        if bill.bill_type == 'HOT':
+            service_usages = ServiceUsage.objects.filter(booking_id=bill.booking_id)
+            for service_usage in service_usages:
+                service_price = service_usage.service_id.price
+                service_sgst_amount = round(service_price * (bill.tenant.service_sgst_lower / 100), 2)
+                service_cgst_amount = round(service_price * (bill.tenant.service_cgst_lower / 100), 2)
+                service_details.append({
+                    'room_id': service_usage.room_id.id,
+                    'service_id': service_usage.service_id.id,
+                    'service_name': service_usage.service_id.name,
+                    'price': service_price,
+                    'cgst': service_cgst_amount,
+                    'sgst': service_sgst_amount
+                })
+        return service_details
+
+    def get_order_details(self, bill):
+        order_details = []
+        if bill.bill_type == 'HOT':
+            orders = Order.objects.filter(booking_id=bill.booking_id, tenant=bill.tenant)
+        elif bill.bill_type == 'RES' and bill.order_id:
+            orders = [bill.order_id]
+        else:
+            orders = []
+
+        for order in orders:
+            order_sgst_amount = round(order.total * (bill.tenant.restaurant_sgst / 100), 2)
+            order_cgst_amount = round(order.total * (bill.tenant.restaurant_cgst / 100), 2)
+            order_details.append({
+                'order_id': order.id,
+                'total': order.total,
+                'cgst': order_cgst_amount,
+                'sgst': order_sgst_amount
+            })
+        return order_details
 
 class BillPaymentViewSet(viewsets.ModelViewSet):
     queryset = BillPayment.objects.all()
