@@ -21,10 +21,14 @@ class TenantViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return Tenant.objects.all()
+            queryset = Tenant.objects.all()
         elif user.role in ['admin', 'manager']:
-            return Tenant.objects.filter(id=user.tenant_id)
-        return Tenant.objects.none()
+            queryset = Tenant.objects.filter(id=user.tenant_id)
+        else:
+            queryset = Tenant.objects.none()
+        
+        logger.debug(f"User: {user.username}, Role: {user.role}, Queryset: {queryset}")
+        return queryset
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:
