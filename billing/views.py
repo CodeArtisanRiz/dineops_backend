@@ -20,6 +20,16 @@ class BillViewSet(viewsets.ModelViewSet):
     queryset = Bill.objects.all()
     serializer_class = BillSerializer
 
+    # def get_queryset(self):
+    #     # return Bill.objects.all()
+    #     return Bill.objects.filter(tenant=self.request.user.tenant).all()  
+    
+    def  get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Bill.objects.all()
+        return Bill.objects.filter(tenant=self.request.user.tenant).all()
+
     def create(self, request, *args, **kwargs):
         data = request.data
         tenant = request.user.tenant
