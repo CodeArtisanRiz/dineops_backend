@@ -12,32 +12,29 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-
-from decouple import config, Csv # Render
 import os
+import pymysql
+from decouple import config
+from decouple import config, Csv # Render
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = 'django-insecure-p41_ww$isrs%%b)$n4*np4h=)ww+2fk75jt^g=cxqsh!3iftel'
 SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-key')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG flag from .env
 DEBUG = config('DEBUG', default=True, cast=bool)
-
 if DEBUG:
     ALLOWED_HOSTS = [
         '127.0.0.1'
     ]
 else:
     ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1', cast=Csv())
-
 
 # Application definition
 
@@ -141,32 +138,29 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'rms_backend.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': config('MYSQL_DB_NAME'),
+        'USER': config('MYSQL_USER'),
+        'PASSWORD': config('MYSQL_PASSWORD'),
+        'HOST': config('MYSQL_HOST'),
+        'PORT': config('MYSQL_PORT', cast=int),
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'connect_timeout': 28800,
+        },
     }
 }
 
-# Database configuration for MongoDB Atlas
+# Old SQLite configuration (commented out)
 # DATABASES = {
 #     'default': {
-
-
-#         'ENGINE': 'djongo',  # Use the Djongo engine for MongoDB support
-#         'NAME': 'your_database_name',  # Name of your MongoDB database
-#         'CLIENT': {
-
-
-
-#             'host': 'your_mongo_atlas_connection_string',  # MongoDB Atlas connection string
-#             'username': 'your_username',  # MongoDB Atlas username
-#             'password': 'your_password',  # MongoDB Atlas password
-#         }
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
 
@@ -190,7 +184,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.0/topics/i18n/
 
@@ -201,7 +194,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
@@ -242,3 +234,5 @@ LOGGING = {
         },
     },
 }
+
+pymysql.install_as_MySQLdb()

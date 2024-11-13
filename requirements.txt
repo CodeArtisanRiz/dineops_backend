@@ -1,7 +1,7 @@
 Django
 djangorestframework
 djangorestframework-simplejwt
-djongo
+# djongo
 django-cors-headers
 Pillow
 requests
@@ -11,6 +11,7 @@ setuptools
 python-decouple
 gunicorn
 whitenoise
+pymysql
 
 
 # django-countries ##INSTALLED_APPS = ['countries']
