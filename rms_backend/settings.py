@@ -94,6 +94,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     # Handle common middleware operations
     'django.middleware.common.CommonMiddleware',
+    'cache.middleware.CacheMiddleware',
 ]
 
 REST_FRAMEWORK = {
@@ -236,3 +237,9 @@ LOGGING = {
 }
 
 pymysql.install_as_MySQLdb()
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
