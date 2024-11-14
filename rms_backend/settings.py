@@ -92,9 +92,9 @@ MIDDLEWARE = [
 
     # Enable CORS (Cross-Origin Resource Sharing) for all origins
     'corsheaders.middleware.CorsMiddleware',
-    # Handle common middleware operations
-    'django.middleware.common.CommonMiddleware',
-    'cache.middleware.CacheMiddleware',
+    # # Handle common middleware operations
+    # 'django.middleware.common.CommonMiddleware',
+    # 'cache.middleware.CacheMiddleware',
 ]
 
 REST_FRAMEWORK = {
