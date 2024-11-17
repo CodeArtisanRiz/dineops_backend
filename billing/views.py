@@ -135,22 +135,10 @@ class BillViewSet(viewsets.ModelViewSet):
                 room_net_total = room_discounted_total + room_sgst + room_cgst
 
                 # Calculate service totals
-                service_usages = ServiceUsage.objects.filter(booking_id=booking_id)
                 service_total = Decimal('0.00')
-                for service_usage in service_usages:
-                    service_price = service_usage.service_id.price
-                    service_total += service_price
-                    service_sgst_amount = round(service_price * (tenant.service_sgst_lower / 100), 2)
-                    service_cgst_amount = round(service_price * (tenant.service_cgst_lower / 100), 2)
-                    service_details.append({
-                        'room_id': service_usage.room_id.id,
-                        'service_id': service_usage.service_id.id,
-                        'service_name': service_usage.service_id.name,
-                        'price': service_price,
-                        'cgst': service_cgst_amount,
-                        'sgst': service_sgst_amount
-                    })
-                    logger.info(f"Service {service_usage.service_id.id}: Name {service_usage.service_id.name}, Price {service_price}, SGST {service_sgst_amount}, CGST {service_cgst_amount}")
+
+                service_usages = ServiceUsage.objects.filter(booking_id=booking_id)
+                service_details = self.calculate_service_details(service_usages, tenant)
 
                 service_discounted_total = service_total - min(service_discount, service_total)
                 service_sgst = round(service_discounted_total * (tenant.service_sgst_lower / 100), 2)
@@ -294,18 +282,7 @@ class BillViewSet(viewsets.ModelViewSet):
 
             # Fetch service details
             service_usages = ServiceUsage.objects.filter(booking_id=instance.booking_id)
-            for service_usage in service_usages:
-                service_price = service_usage.service_id.price
-                service_sgst_amount = round(service_price * (instance.tenant.service_sgst_lower / 100), 2)
-                service_cgst_amount = round(service_price * (instance.tenant.service_cgst_lower / 100), 2)
-                service_details.append({
-                    'room_id': service_usage.room_id.id,
-                    'service_id': service_usage.service_id.id,
-                    'service_name': service_usage.service_id.name,
-                    'price': service_price,
-                    'cgst': service_cgst_amount,
-                    'sgst': service_sgst_amount
-                })
+            service_details = self.calculate_service_details(service_usages, instance.tenant)
 
             # Fetch order details
             orders = Order.objects.filter(booking_id=instance.booking_id, tenant=instance.tenant)
@@ -409,21 +386,10 @@ class BillViewSet(viewsets.ModelViewSet):
                 room_net_total = room_discounted_total + room_sgst + room_cgst
 
                 # Calculate service totals
-                service_usages = ServiceUsage.objects.filter(booking_id=instance.booking_id)
                 service_total = Decimal('0.00')
-                for service_usage in service_usages:
-                    service_price = service_usage.service_id.price
-                    service_total += service_price
-                    service_sgst_amount = round(service_price * (instance.tenant.service_sgst_lower / 100), 2)
-                    service_cgst_amount = round(service_price * (instance.tenant.service_cgst_lower / 100), 2)
-                    service_details.append({
-                        'room_id': service_usage.room_id.id,
-                        'service_id': service_usage.service_id.id,
-                        'service_name': service_usage.service_id.name,
-                        'price': service_price,
-                        'cgst': service_cgst_amount,
-                        'sgst': service_sgst_amount
-                    })
+
+                service_usages = ServiceUsage.objects.filter(booking_id=instance.booking_id)
+                service_details = self.calculate_service_details(service_usages, instance.tenant)
 
                 service_discounted_total = service_total - min(service_discount, service_total)
                 service_sgst = round(service_discounted_total * (instance.tenant.service_sgst_lower / 100), 2)
@@ -569,7 +535,7 @@ class BillViewSet(viewsets.ModelViewSet):
                 service_sgst_amount = round(service_price * (bill.tenant.service_sgst_lower / 100), 2)
                 service_cgst_amount = round(service_price * (bill.tenant.service_cgst_lower / 100), 2)
                 service_details.append({
-                    'room_id': service_usage.room_id.id,
+                    'room_id': service_usage.room_id.room_id,
                     'service_id': service_usage.service_id.id,
                     'service_name': service_usage.service_id.name,
                     'price': service_price,
@@ -597,6 +563,22 @@ class BillViewSet(viewsets.ModelViewSet):
                 'sgst': order_sgst_amount
             })
         return order_details
+
+    def calculate_service_details(self, service_usages, tenant):
+        service_details = []
+        for service_usage in service_usages:
+            service_price = service_usage.service_id.price
+            service_sgst_amount = round(service_price * (tenant.service_sgst_lower / 100), 2)
+            service_cgst_amount = round(service_price * (tenant.service_cgst_lower / 100), 2)
+            service_details.append({
+                'room_id': service_usage.room_id.room_id,
+                'service_id': service_usage.service_id.id,
+                'service_name': service_usage.service_id.name,
+                'price': service_price,
+                'cgst': service_cgst_amount,
+                'sgst': service_sgst_amount
+            })
+        return service_details
 
 class BillPaymentViewSet(viewsets.ModelViewSet):
     queryset = BillPayment.objects.all()
