@@ -13,6 +13,7 @@ from datetime import datetime, time
 from django.utils import timezone
 from .models import BillPayment
 from .serializers import BillPaymentSerializer
+from utils.days_stayed_calc import calculate_days_stayed  # Import the function from utils
 
 logger = logging.getLogger(__name__)
 
@@ -112,17 +113,7 @@ class BillViewSet(viewsets.ModelViewSet):
                         return Response({"error": "Invalid check-in or check-out date."}, status=status.HTTP_400_BAD_REQUEST)
 
                     # Calculate days stayed based on the selected method
-                    if day_calculation_method == 'hotel_standard':
-                        # Hotel standard logic
-                        days_stayed = (check_out_date - check_in_date).days
-                        if check_out_date.time() > time(12, 0, 0):
-                            days_stayed += 1
-                    elif day_calculation_method == '24h_basis':
-                        # 24h basis logic
-                        total_hours = (check_out_date - check_in_date).total_seconds() / 3600
-                        days_stayed = int(total_hours // 24) + (1 if total_hours % 24 > 0 else 0)
-                    else:
-                        return Response({"error": "Invalid day calculation method."}, status=status.HTTP_400_BAD_REQUEST)
+                    days_stayed = calculate_days_stayed(check_in_date, check_out_date, day_calculation_method)
 
                     room_price_total = room_booking.room.price * days_stayed
                     room_total += room_price_total
@@ -241,6 +232,9 @@ class BillViewSet(viewsets.ModelViewSet):
             bill.service_cgst = service_cgst
             bill.status = 'unpaid'  # Reset status to unpaid after regeneration
 
+            # Set the day_calculation_method from the request data
+            bill.day_calculation_method = data.get('day_calculation_method', 'hotel_standard')  # Default to 'hotel_standard'
+
             # Only set these fields if creating a new bill
             if not existing_bill:
                 bill.tenant = tenant
@@ -282,7 +276,10 @@ class BillViewSet(viewsets.ModelViewSet):
             for room_booking in room_bookings:
                 check_out = CheckOut.objects.filter(room_booking=room_booking).first()
                 check_in = CheckIn.objects.filter(room_booking=room_booking).first()
-                days_stayed = (check_out.check_out_date - check_in.check_in_date).days
+                
+                # Calculate days stayed based on the day_calculation_method from the Bill instance
+                days_stayed = calculate_days_stayed(check_in.check_in_date, check_out.check_out_date, instance.day_calculation_method)
+
                 room_price_total = room_booking.room.price * days_stayed
                 room_sgst_amount = round(room_price_total * (instance.tenant.hotel_sgst_lower / 100), 2)
                 room_cgst_amount = round(room_price_total * (instance.tenant.hotel_cgst_lower / 100), 2)
@@ -391,13 +388,7 @@ class BillViewSet(viewsets.ModelViewSet):
                     check_in = CheckIn.objects.filter(room_booking=room_booking).first()
 
                     # Calculate days stayed based on the selected method
-                    if day_calculation_method == 'hotel_standard':
-                        days_stayed = (check_out.check_out_date - check_in.check_in_date).days
-                        if check_out.check_out_date.time() > time(12, 0, 0):
-                            days_stayed += 1
-                    else:  # 24h_basis
-                        total_hours = (check_out.check_out_date - check_in.check_in_date).total_seconds() / 3600
-                        days_stayed = int(total_hours // 24) + (1 if total_hours % 24 > 0 else 0)
+                    days_stayed = calculate_days_stayed(check_in.check_in_date, check_out.check_out_date, day_calculation_method)
 
                     room_price_total = room_booking.room.price * days_stayed
                     room_total += room_price_total
@@ -550,18 +541,23 @@ class BillViewSet(viewsets.ModelViewSet):
             for room_booking in room_bookings:
                 check_out = CheckOut.objects.filter(room_booking=room_booking).first()
                 check_in = CheckIn.objects.filter(room_booking=room_booking).first()
-                days_stayed = (check_out.check_out_date - check_in.check_in_date).days
-                room_price_total = room_booking.room.price * days_stayed
-                room_sgst_amount = round(room_price_total * (bill.tenant.hotel_sgst_lower / 100), 2)
-                room_cgst_amount = round(room_price_total * (bill.tenant.hotel_cgst_lower / 100), 2)
-                room_details.append({
-                    'room_id': room_booking.room.id,
-                    'room_price': room_booking.room.price,
-                    'days_stayed': days_stayed,
-                    'total': room_price_total,
-                    'cgst': room_cgst_amount,
-                    'sgst': room_sgst_amount
-                })
+                
+                # Ensure check_in and check_out are valid
+                if check_in and check_out:
+                    # Calculate days stayed using the same method as in retrieve
+                    days_stayed = calculate_days_stayed(check_in.check_in_date, check_out.check_out_date, bill.day_calculation_method)
+
+                    room_price_total = room_booking.room.price * days_stayed
+                    room_sgst_amount = round(room_price_total * (bill.tenant.hotel_sgst_lower / 100), 2)
+                    room_cgst_amount = round(room_price_total * (bill.tenant.hotel_cgst_lower / 100), 2)
+                    room_details.append({
+                        'room_id': room_booking.room.id,
+                        'room_price': room_booking.room.price,
+                        'days_stayed': days_stayed,
+                        'total': room_price_total,
+                        'cgst': room_cgst_amount,
+                        'sgst': room_sgst_amount
+                    })
         return room_details
 
     def get_service_details(self, bill):

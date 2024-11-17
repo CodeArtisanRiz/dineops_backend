@@ -32,6 +32,7 @@ class BillSerializer(serializers.ModelSerializer):
             'created_by',
             'modified_at',
             'modified_by',
+            'day_calculation_method',
         ]
         read_only_fields = [
             'id',

@@ -20,10 +20,15 @@ class Bill(models.Model):
         ('paid', 'Paid'),
         ('partial', 'Partially Paid'),
     ]
+    DAY_CALCULATION_METHOD_CHOICES = [
+        ('hotel_standard', 'Hotel Standard'),
+        ('24h_basis', '24 Hours'),
+    ]
 
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
     res_bill_no = models.IntegerField(null=True, blank=True)
     hot_bill_no = models.IntegerField(null=True, blank=True)
+    day_calculation_method = models.CharField(max_length=20, choices=DAY_CALCULATION_METHOD_CHOICES, default='hotel_standard')
     bill_no = models.IntegerField(null=True, blank=True)
     gst_bill_no = models.CharField(max_length=100, null=True, blank=True)
     bill_type = models.CharField(max_length=3, choices=BILL_TYPE_CHOICES)
