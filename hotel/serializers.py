@@ -83,7 +83,7 @@ class BookingSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Booking
-        fields = ['id', 'booking_date', 'status', 'total_amount', 'tenant', 'guests', 'guest_detail', 'rooms', 'id_card']
+        fields = ['id', 'booking_date', 'status', 'advance',  'total_amount', 'tenant', 'guests', 'guest_detail', 'rooms', 'id_card']
         extra_kwargs = {
             'id_card': {'required': False, 'allow_null': True}
         }

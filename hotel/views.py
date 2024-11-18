@@ -365,7 +365,7 @@ class BookingViewSet(viewsets.ViewSet):
         data['tenant'] = tenant.id
         data['guests'] = [guest_id]
         data['total_amount'] = data.get('total_amount', 0.0)
-        data['advance_paid'] = data.get('advance_paid', 0.0)
+        data['advance'] = data.get('advance', 0.0)
 
         # Check room availability
         unavailable_rooms = []
@@ -463,6 +463,8 @@ class BookingViewSet(viewsets.ViewSet):
         else:
             data['id_card'] = booking.id_card  # Keep existing value if no new files are uploaded
 
+        data['advance'] = data.get('advance', booking.advance)
+
         serializer = BookingSerializer(booking, data=data, partial=True)
         if serializer.is_valid():
             booking = serializer.save()
@@ -498,6 +500,8 @@ class BookingViewSet(viewsets.ViewSet):
             data['id_card'] = id_card_urls  # Store as list of URLs
         else:
             data['id_card'] = booking.id_card  # Keep existing value if no new files are uploaded
+
+        data['advance'] = data.get('advance', booking.advance)
 
         serializer = BookingSerializer(booking, data=data, partial=True)
         if serializer.is_valid():

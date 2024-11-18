@@ -65,8 +65,10 @@ class Booking(models.Model):
     booking_date = models.DateTimeField(default=timezone.now, null=True, blank=True)
     status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='pending')
     guests = models.ManyToManyField(User, related_name='bookings', blank=True)
+    advance = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     id_card = models.JSONField(blank=True, null=True)  # Added field
+
 
     def __str__(self):
         return f"Booking {self.id} - Tenant: {self.tenant} - Status: {self.get_status_display()}"
