@@ -28,9 +28,6 @@ class OrderSerializer(serializers.ModelSerializer):
     def get_phone(self, obj):
         return obj.customer.phone
 
-    def get_table_numbers(self, obj):
-        return [table.id for table in obj.tables.all()]
-
     def get_customer(self, obj):
         return {
             "id": obj.customer.id,
@@ -75,9 +72,6 @@ class OrderSerializer(serializers.ModelSerializer):
         quantity = validated_data.pop('quantity')
         tables = validated_data.pop('tables', [])
         discount = validated_data.get('discount', Decimal('0.00'))
-
-        # Debugging: Log foreign key values
-        print(f"Creating order with tenant: {validated_data.get('tenant')}, customer: {validated_data.get('customer')}, room_id: {validated_data.get('room_id')}, booking_id: {validated_data.get('booking_id')}")
 
         # Create order
         order = Order.objects.create(

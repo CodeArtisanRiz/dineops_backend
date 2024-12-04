@@ -24,7 +24,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     serializer_class = OrderSerializer
 
     def get_queryset(self):
-        return Order.objects.filter(tenant=self.request.user.tenant)
+        # Use select_related and prefetch_related to optimize query performance
+        return Order.objects.filter(tenant=self.request.user.tenant).select_related('customer', 'room_id', 'booking_id').prefetch_related('food_items', 'tables')
 
     def create(self, request):
         try:
@@ -89,8 +90,8 @@ class OrderViewSet(viewsets.ModelViewSet):
                     status='in_progress',
                     order_type=order_type,
                     quantity=list(sorted_quantities),
-                    room_id=room,
-                    booking_id=booking
+                    room_id=room if order_type == 'hotel' else None,
+                    booking_id=booking if order_type == 'hotel' else None
                 )
 
                 # Save the order to generate an ID
