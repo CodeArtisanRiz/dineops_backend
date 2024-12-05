@@ -503,6 +503,79 @@ class BookingViewSet(viewsets.ViewSet):
 
         data['advance'] = data.get('advance', booking.advance)
 
+        # Check for rooms to remove
+        rooms_to_remove = data.get('rooms_to_remove', [])
+        if isinstance(rooms_to_remove, str):
+            rooms_to_remove = json.loads(rooms_to_remove)  # Convert JSON string to list if necessary
+
+        if rooms_to_remove:
+            for room_id in rooms_to_remove:
+                try:
+                    room_booking = RoomBooking.objects.get(booking=booking, room_id=room_id)
+                    # Ensure the room has not been checked in
+                    if CheckIn.objects.filter(room_booking=room_booking).exists():
+                        return Response(
+                            {"error": f"Cannot remove room {room_id} that has been checked in."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    room_booking.delete()
+
+                    # Update room status to available
+                    room = Room.objects.get(id=room_id)
+                    room.status = 'available'
+                    room.save()
+                except RoomBooking.DoesNotExist:
+                    return Response(
+                        {"error": f"RoomBooking for room {room_id} does not exist in booking {pk}."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                except Exception as e:
+                    logger.error(f"Error removing room {room_id} from booking {pk}: {str(e)}")
+                    return Response(
+                        {"error": f"An unexpected error occurred while removing room {room_id}: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+
+        # Check for rooms to add
+        rooms_to_add = data.get('rooms_to_add', [])
+        if isinstance(rooms_to_add, str):
+            rooms_to_add = json.loads(rooms_to_add)  # Convert JSON string to list if necessary
+
+        if rooms_to_add:
+            for room_data in rooms_to_add:
+                room_id = room_data.get('room_id')
+                start_date = room_data.get('start_date')
+                end_date = room_data.get('end_date')
+
+                # Validate room availability
+                overlapping_bookings = RoomBooking.objects.filter(
+                    room_id=room_id,
+                    start_date__lt=end_date,
+                    end_date__gt=start_date,
+                    booking__status__in=['pending', 'confirmed', 'checked_in'],
+                    is_active=True
+                )
+
+                if overlapping_bookings.exists():
+                    return Response(
+                        {"error": f"Room {room_id} is not available for the selected dates."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Create new RoomBooking
+                RoomBooking.objects.create(
+                    booking=booking,
+                    room_id=room_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                    is_active=True
+                )
+
+                # Update room status to occupied
+                room = Room.objects.get(id=room_id)
+                room.status = 'occupied'
+                room.save()
+
         serializer = BookingSerializer(booking, data=data, partial=True)
         if serializer.is_valid():
             booking = serializer.save()
