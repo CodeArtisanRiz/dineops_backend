@@ -576,6 +576,59 @@ class BookingViewSet(viewsets.ViewSet):
                 room.status = 'occupied'
                 room.save()
 
+        # Check for rooms to update
+        update_rooms = request.data.get('update_rooms', [])
+        if isinstance(update_rooms, str):
+            update_rooms = json.loads(update_rooms)  # Convert JSON string to list if necessary
+
+        if update_rooms:
+            for room_data in update_rooms:
+                room_id = room_data.get('room_id')
+                new_start_date = room_data.get('start_date')
+                new_end_date = room_data.get('end_date')
+
+                try:
+                    room_booking = RoomBooking.objects.get(booking=booking, room_id=room_id)
+
+                    # Validate new dates
+                    if new_start_date >= new_end_date:
+                        return Response(
+                            {"error": f"End date must be greater than start date for room {room_id}."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    # Check room availability
+                    overlapping_bookings = RoomBooking.objects.filter(
+                        room_id=room_id,
+                        start_date__lt=new_end_date,
+                        end_date__gt=new_start_date,
+                        booking__status__in=['pending', 'confirmed', 'checked_in'],
+                        is_active=True
+                    ).exclude(id=room_booking.id)
+
+                    if overlapping_bookings.exists():
+                        return Response(
+                            {"error": f"Room {room_id} is not available for the selected dates."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+
+                    # Update the room booking dates
+                    room_booking.start_date = new_start_date
+                    room_booking.end_date = new_end_date
+                    room_booking.save()
+
+                except RoomBooking.DoesNotExist:
+                    return Response(
+                        {"error": f"RoomBooking for room {room_id} does not exist in booking {pk}."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                except Exception as e:
+                    logger.error(f"Error updating room {room_id} in booking {pk}: {str(e)}")
+                    return Response(
+                        {"error": f"An unexpected error occurred while updating room {room_id}: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+
         serializer = BookingSerializer(booking, data=data, partial=True)
         if serializer.is_valid():
             booking = serializer.save()
