@@ -12,6 +12,7 @@ python-decouple
 gunicorn
 whitenoise
 pymysql
+python-dotenv
 
 
 # django-countries ##INSTALLED_APPS = ['countries']
