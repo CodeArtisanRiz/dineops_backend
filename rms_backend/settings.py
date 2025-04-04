@@ -14,7 +14,7 @@ from pathlib import Path
 from datetime import timedelta
 import os
 import pymysql
-from decouple import config
+# from decouple import config
 from decouple import config, Csv # Render
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -77,24 +77,53 @@ SWAGGER_SETTINGS = {
             'description': 'JWT Authorization header using the Bearer scheme. Example: "Authorization: Bearer {token}"'
         }
     },
-    'USE_SESSION_AUTH': False,  # Disable session authentication if using JWT
+    'USE_SESSION_AUTH': False,
+    'VALIDATOR_URL': None,  # Disable online validator
+    'DEFAULT_INFO': {
+        'title': 'DineOps API',
+        'description': 'API documentation for DineOps Backend',
+        'version': '1.0.0',
+    },
+    'SCHEMES': ['http', 'https'],  # Add both HTTP and HTTPS schemes
 }
 
+# Add these settings for Swagger UI
+SWAGGER_SETTINGS['SUPPORTED_SUBMIT_METHODS'] = [
+    'get',
+    'post',
+    'put',
+    'delete',
+    'patch',
+]
+
+# Update your ALLOWED_HOSTS to include all necessary domains
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    # Add your domain or IP where the API is running
+    config('ALLOWED_HOSTS', default='*', cast=Csv()),
+]
+
+# Make sure CORS settings are properly configured
+CORS_ALLOW_ALL_ORIGINS = True  # For development only
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    # Add other allowed origins
+]
+CORS_ALLOW_CREDENTIALS = True
+
+# Add these middleware if not already present
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',  # Make sure this is near the top
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
-    # Enable CORS (Cross-Origin Resource Sharing) for all origins
-    'corsheaders.middleware.CorsMiddleware',
-    # # Handle common middleware operations
-    # 'django.middleware.common.CommonMiddleware',
-    # 'cache.middleware.CacheMiddleware',
 ]
 
 REST_FRAMEWORK = {
@@ -111,13 +140,6 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
-
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
-
-# If you want to allow all origins (for development purposes only):
-CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'rms_backend.urls'
 
@@ -148,11 +170,13 @@ DATABASES = {
         'NAME': config('MYSQL_DB_NAME'),
         'USER': config('MYSQL_USER'),
         'PASSWORD': config('MYSQL_PASSWORD'),
-        'HOST': config('MYSQL_HOST'),
-        'PORT': config('MYSQL_PORT', cast=int),
+        'HOST': config('MYSQL_HOST'),  # Remove default='db' since it's remote
+        'PORT': config('MYSQL_PORT', default='3306', cast=int),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'connect_timeout': 28800,
+            'read_timeout': 30,
+            'write_timeout': 30,
         },
         # 'CONN_MAX_AGE': 600,  # Keep connections open for 10 minutes
     }
@@ -198,13 +222,14 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
-
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')  # Ensure this directory exists
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
-# STATIC_URL = 'static/'
+# Add this setting
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field

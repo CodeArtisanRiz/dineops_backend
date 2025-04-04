@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  web:
+    image: codeartisanriz/dineops_backend:latest
+    command: gunicorn --bind 0.0.0.0:8000 rms_backend.wsgi:application
+    volumes:
+      - static_volume:/app/staticfiles
+    ports:
+      - "8000:8000"
+    environment:
+      - MYSQL_DB_NAME=${MYSQL_DB_NAME}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_HOST=srv664.hstgr.io
+      - MYSQL_PORT=3306
+      - SECRET_KEY=${SECRET_KEY}
+      - DEBUG=False
+      - ALLOWED_HOSTS=127.0.0.1,141.148.197.77,localhost,hoteliswar.in,backend.hoteliswar.in
+
+volumes:
+  static_volume: 

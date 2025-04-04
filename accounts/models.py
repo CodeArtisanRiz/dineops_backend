@@ -137,6 +137,7 @@ class User(AbstractUser):
     address_line_1 = models.TextField(blank=True, null=True)
     address_line_2 = models.TextField(blank=True, null=True)
     dob = models.DateField(null=True, blank=True)
+    is_verified = models.BooleanField(default=True)
     # identification = models.JSONField(default=list, blank=True)  # Remove this field
 
     def __str__(self):

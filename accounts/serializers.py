@@ -69,12 +69,15 @@ class TenantSerializer(serializers.ModelSerializer):
         return obj.subscription_from <= date.today() <= obj.subscription_to
 
 class UserSerializer(serializers.ModelSerializer):
+    tenant_id = serializers.IntegerField(write_only=True, required=False)
+    
     class Meta:
         model = UserModel
         # fields = ['id', 'username', 'password', 'email', 'tenant', 'first_name', 'last_name', 'role', 'phone', 'address']
         fields = '__all__'
         extra_kwargs = {
-            'password': {'write_only': True}
+            'password': {'write_only': True},
+            'tenant': {'read_only': True}
         }
 
     def create(self, validated_data):

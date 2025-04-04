@@ -12,6 +12,15 @@ import logging
 from utils.image_upload import handle_image_upload
 from datetime import timezone, datetime  # Import datetime module
 
+
+
+# Add these imports at the top
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model
+import random
+import string
+
 logger = logging.getLogger(__name__)
 
 class TenantViewSet(viewsets.ModelViewSet):
@@ -142,7 +151,33 @@ class UserViewSet(viewsets.ModelViewSet):
             if tenant_id:
                 return self.queryset.filter(tenant_id=tenant_id)
             return self.queryset
-        return self.queryset.filter(tenant=user.tenant)
+        elif user.role in ['admin', 'manager']:
+            # Allow admin and managers to see all users (including customers) of their tenant
+            return self.queryset.filter(tenant=user.tenant)
+        else:
+            # Allow users to see their own profile
+            return self.queryset.filter(id=user.id)
+
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = UserModel.objects.get(id=kwargs.get('pk'))
+            # Check permissions
+            if not request.user.is_superuser:
+                # Admin/Manager can view any user in their tenant
+                if request.user.role in ['admin', 'manager']:
+                    if request.user.tenant != instance.tenant:
+                        raise PermissionDenied("You do not have permission to view users from other tenants.")
+                # Regular users can only view their own profile
+                elif request.user.id != instance.id:
+                    raise PermissionDenied("You can only view your own profile.")
+            
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except UserModel.DoesNotExist:
+            return Response(
+                {"detail": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -175,4 +210,121 @@ class UserViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("Superuser must include tenant ID in request.")
         else:
             serializer.save()
+
+
+
+# Add these new view classes
+class CustomerRegistrationView(APIView):
+    permission_classes = []  # Allow unauthenticated access
+
+    def generate_temp_password(self):
+        return ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+
+    def generate_otp(self):
+        return ''.join(random.choices(string.digits, k=6))
+
+    def post(self, request):
+        tenant_id = request.data.get('tenant_id')
+        phone = request.data.get('phone')
+        
+        if not tenant_id or not phone:
+            return Response({
+                'error': 'tenant_id and phone are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if tenant exists
+        try:
+            tenant = Tenant.objects.get(id=tenant_id)
+        except Tenant.DoesNotExist:
+            return Response({
+                'error': 'Invalid tenant_id'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Generate username from phone
+        username = f"customer_{phone}"
+        
+        # Check if user already exists
+        UserModel = get_user_model()
+        if UserModel.objects.filter(username=username).exists():
+            return Response({
+                'error': 'User with this phone number already exists'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create user with temporary password
+        temp_password = self.generate_temp_password()
+        user_data = {
+            'username': username,
+            'password': temp_password,
+            'phone': phone,
+            'tenant': tenant.id,
+            'role': 'customer',
+            'first_name': request.data.get('first_name', ''),
+            'last_name': request.data.get('last_name', ''),
+            'address_line_1': request.data.get('address_line_1', ''),
+            'address_line_2': request.data.get('address_line_2', ''),
+            'dob': request.data.get('dob'),
+            'is_verified': False,  # Set is_verified to False on registration
+        }
+
+        serializer = UserSerializer(data=user_data)
+        if serializer.is_valid():
+            user = serializer.save(tenant=tenant)  # Pass tenant instance directly
+            
+            # Generate OTP
+            otp = self.generate_otp()
+            # TODO: Integrate Firebase for OTP sending
+            print(f"OTP for {phone}: {otp}")
+            
+            # Store OTP in session or cache for verification
+            request.session[f'otp_{phone}'] = otp
+            
+            return Response({
+                'message': 'User created successfully',
+                'phone': phone,
+                'user_id': user.id
+            }, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class CustomerVerificationView(APIView):
+    permission_classes = []  # Allow unauthenticated access
+
+    def post(self, request):
+        phone = request.data.get('phone')
+        otp = request.data.get('otp')
+
+        if not phone or not otp:
+            return Response({
+                'error': 'phone and otp are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify OTP
+        stored_otp = request.session.get(f'otp_{phone}')
+        if not stored_otp or stored_otp != otp:
+            return Response({
+                'error': 'Invalid OTP'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Get user and generate token
+        UserModel = get_user_model()
+        try:
+            user = UserModel.objects.get(phone=phone)
+            # Update is_verified to True after successful OTP verification
+            user.is_verified = True
+            user.save()
+            
+            refresh = RefreshToken.for_user(user)
+            
+            # Clear OTP from session
+            del request.session[f'otp_{phone}']
+
+            return Response({
+                'refresh': str(refresh),
+                'access': str(refresh.access_token),
+            }, status=status.HTTP_200_OK)
+            
+        except UserModel.DoesNotExist:
+            return Response({
+                'error': 'User not found'
+            }, status=status.HTTP_404_NOT_FOUND)
 
