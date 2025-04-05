@@ -15,6 +15,8 @@ from datetime import timedelta
 from django.utils import timezone
 # from utils.firebase_auth import send_phone_verification, verify_phone_code
 from .models import PhoneVerification
+from utils.otp_auth import generate_verification_data, verify_otp
+
 
 
 
@@ -217,9 +219,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 
-# Add these new view classes
-from utils.otp_auth import generate_verification_data, verify_otp  # Add this import
-
 class CustomerRegistrationView(APIView):
     permission_classes = []
 
@@ -228,35 +227,71 @@ class CustomerRegistrationView(APIView):
 
     def post(self, request):
         tenant_id = request.data.get('tenant_id')
-        phone = request.data.get('phone')
+        method = request.data.get('method', 'phone')
+        email = request.data.get('email', '')
+        phone = request.data.get('phone', '')
         
-        if not tenant_id or not phone:
+        if not tenant_id:
             return Response({
-                'error': 'tenant_id and phone are required'
+                'error': 'tenant_id is required'
             }, status=status.HTTP_400_BAD_REQUEST)
-
+        
+        # Check for existing users with either email or phone
+        if email and UserModel.objects.filter(email=email).exists():
+            return Response({
+                'error': 'Email is already registered'
+            }, status=status.HTTP_400_BAD_REQUEST)
+            
+        if phone and UserModel.objects.filter(phone=phone).exists():
+            return Response({
+                'error': 'Phone number is already registered'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if method not in ['phone', 'email']:
+            return Response({
+                'error': 'Invalid verification method. Use "phone" or "email"'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate based on method
+        if method == 'email':
+            email = request.data.get('email')
+            if not email:
+                return Response({
+                    'error': 'email is required for email verification'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            username = f"customer_{email}"
+            identifier = email
+        else:
+            phone = request.data.get('phone')
+            if not phone:
+                return Response({
+                    'error': 'phone is required for phone verification'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            username = f"customer_{phone}"
+            identifier = phone
+        
         try:
             tenant = Tenant.objects.get(id=tenant_id)
         except Tenant.DoesNotExist:
             return Response({
                 'error': 'Invalid tenant_id'
             }, status=status.HTTP_404_NOT_FOUND)
-
-        username = f"customer_{phone}"
+        
         if UserModel.objects.filter(username=username).exists():
             return Response({
-                'error': 'User with this phone number already exists'
+                'error': f'User with this {method} already exists'
             }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Generate OTP and token
-        otp, token = generate_verification_data()
-        verification_token = f"{otp}{token}"  # Store OTP with token
+        
+        # Generate OTP and token based on method
+        otp, token = generate_verification_data(method)
+        verification_token = f"{otp}{token}"
         
         temp_password = self.generate_temp_password()
         user_data = {
             'username': username,
             'password': temp_password,
-            'phone': phone,
+            'phone': request.data.get('phone', ''),
+            'email': request.data.get('email', ''),
             'tenant': tenant.id,
             'role': 'customer',
             'first_name': request.data.get('first_name', ''),
@@ -271,16 +306,16 @@ class CustomerRegistrationView(APIView):
         if serializer.is_valid():
             user = serializer.save(tenant=tenant)
             
-            # Store verification details
+            # Store verification details based on method
             PhoneVerification.objects.create(
-                phone=phone,
+                phone=identifier,  # Use identifier instead of phone
                 verification_id=verification_token,
                 expires_at=timezone.now() + timedelta(minutes=10)
             )
             
             return Response({
-                'message': 'Verification code sent',
-                'phone': phone,
+                'message': f'Verification code sent to your {method}',
+                'identifier': identifier,  # Return the identifier used
                 'user_id': user.id,
                 'verification_id': token  # Send only token part
             }, status=status.HTTP_201_CREATED)
