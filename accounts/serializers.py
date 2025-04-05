@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Tenant
+from .models import Tenant, PhoneVerification  # Add PhoneVerification import
 from foods.models import Table
 from foods.serializers import TableSerializer
 from decimal import Decimal
@@ -96,3 +96,10 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
         instance.save()
         return instance
+
+
+class PhoneVerificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PhoneVerification
+        fields = ['phone', 'verification_id', 'created_at', 'expires_at']
+        read_only_fields = ['created_at', 'expires_at', 'verification_id']

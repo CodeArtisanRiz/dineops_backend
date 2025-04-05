@@ -14,6 +14,9 @@ whitenoise
 pymysql
 python-dotenv
 
+# firebase-admin
+django-firebase-auth
+# requests
 
 # django-countries ##INSTALLED_APPS = ['countries']
 # django-cities #INSTALLED_APPS = ['cities']

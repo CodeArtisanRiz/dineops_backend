@@ -3,14 +3,18 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from django.contrib.auth import get_user_model
-from .models import Tenant
-from .serializers import UserSerializer, TenantSerializer, TableSerializer
+from .models import Tenant, PhoneVerification
+from .serializers import UserSerializer, TenantSerializer, TableSerializer, PhoneVerificationSerializer
 from utils.permissions import IsSuperuser, IsTenantAdmin
 import requests
 import json  # Import json module
 import logging
 from utils.image_upload import handle_image_upload
 from datetime import timezone, datetime  # Import datetime module
+from datetime import timedelta
+from django.utils import timezone
+# from utils.firebase_auth import send_phone_verification, verify_phone_code
+from .models import PhoneVerification
 
 
 
@@ -214,14 +218,13 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 # Add these new view classes
+from utils.otp_auth import generate_verification_data, verify_otp  # Add this import
+
 class CustomerRegistrationView(APIView):
-    permission_classes = []  # Allow unauthenticated access
+    permission_classes = []
 
     def generate_temp_password(self):
         return ''.join(random.choices(string.ascii_letters + string.digits, k=10))
-
-    def generate_otp(self):
-        return ''.join(random.choices(string.digits, k=6))
 
     def post(self, request):
         tenant_id = request.data.get('tenant_id')
@@ -232,7 +235,6 @@ class CustomerRegistrationView(APIView):
                 'error': 'tenant_id and phone are required'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if tenant exists
         try:
             tenant = Tenant.objects.get(id=tenant_id)
         except Tenant.DoesNotExist:
@@ -240,17 +242,16 @@ class CustomerRegistrationView(APIView):
                 'error': 'Invalid tenant_id'
             }, status=status.HTTP_404_NOT_FOUND)
 
-        # Generate username from phone
         username = f"customer_{phone}"
-        
-        # Check if user already exists
-        UserModel = get_user_model()
         if UserModel.objects.filter(username=username).exists():
             return Response({
                 'error': 'User with this phone number already exists'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create user with temporary password
+        # Generate OTP and token
+        otp, token = generate_verification_data()
+        verification_token = f"{otp}{token}"  # Store OTP with token
+        
         temp_password = self.generate_temp_password()
         user_data = {
             'username': username,
@@ -263,68 +264,80 @@ class CustomerRegistrationView(APIView):
             'address_line_1': request.data.get('address_line_1', ''),
             'address_line_2': request.data.get('address_line_2', ''),
             'dob': request.data.get('dob'),
-            'is_verified': False,  # Set is_verified to False on registration
+            'is_verified': False,
         }
 
         serializer = UserSerializer(data=user_data)
         if serializer.is_valid():
-            user = serializer.save(tenant=tenant)  # Pass tenant instance directly
+            user = serializer.save(tenant=tenant)
             
-            # Generate OTP
-            otp = self.generate_otp()
-            # TODO: Integrate Firebase for OTP sending
-            print(f"OTP for {phone}: {otp}")
-            
-            # Store OTP in session or cache for verification
-            request.session[f'otp_{phone}'] = otp
+            # Store verification details
+            PhoneVerification.objects.create(
+                phone=phone,
+                verification_id=verification_token,
+                expires_at=timezone.now() + timedelta(minutes=10)
+            )
             
             return Response({
-                'message': 'User created successfully',
+                'message': 'Verification code sent',
                 'phone': phone,
-                'user_id': user.id
+                'user_id': user.id,
+                'verification_id': token  # Send only token part
             }, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class CustomerVerificationView(APIView):
-    permission_classes = []  # Allow unauthenticated access
+    permission_classes = []
 
     def post(self, request):
         phone = request.data.get('phone')
-        otp = request.data.get('otp')
+        code = request.data.get('code')
+        verification_id = request.data.get('verification_id')
 
-        if not phone or not otp:
+        if not all([phone, code, verification_id]):
             return Response({
-                'error': 'phone and otp are required'
+                'error': 'phone, code and verification_id are required'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Verify OTP
-        stored_otp = request.session.get(f'otp_{phone}')
-        if not stored_otp or stored_otp != otp:
-            return Response({
-                'error': 'Invalid OTP'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        # Get user and generate token
-        UserModel = get_user_model()
         try:
-            user = UserModel.objects.get(phone=phone)
-            # Update is_verified to True after successful OTP verification
-            user.is_verified = True
-            user.save()
+            verification = PhoneVerification.objects.get(
+                phone=phone,
+                verification_id__endswith=verification_id,  # Match token part
+                expires_at__gt=timezone.now(),
+                is_verified=False
+            )
             
-            refresh = RefreshToken.for_user(user)
+            is_valid, message = verify_otp(verification, code)
             
-            # Clear OTP from session
-            del request.session[f'otp_{phone}']
-
+            if is_valid:
+                # Update user verification status
+                user = UserModel.objects.get(phone=phone)
+                user.is_verified = True
+                user.save()
+                
+                # Mark verification as complete
+                verification.is_verified = True
+                verification.save()
+                
+                # Generate tokens
+                refresh = RefreshToken.for_user(user)
+                
+                return Response({
+                    'refresh': str(refresh),
+                    'access': str(refresh.access_token),
+                }, status=status.HTTP_200_OK)
+            
+            # Failed verification attempt
+            verification.attempts += 1
+            verification.save()
+            
             return Response({
-                'refresh': str(refresh),
-                'access': str(refresh.access_token),
-            }, status=status.HTTP_200_OK)
+                'error': message
+            }, status=status.HTTP_400_BAD_REQUEST)
             
-        except UserModel.DoesNotExist:
+        except PhoneVerification.DoesNotExist:
             return Response({
-                'error': 'User not found'
-            }, status=status.HTTP_404_NOT_FOUND)
+                'error': 'Invalid or expired verification session'
+            }, status=status.HTTP_400_BAD_REQUEST)
 

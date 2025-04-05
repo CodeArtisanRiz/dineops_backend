@@ -142,3 +142,17 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+
+class PhoneVerification(models.Model):
+    phone = models.CharField(max_length=15)
+    verification_id = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.IntegerField(default=0)
+    is_verified = models.BooleanField(default=False)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['phone', 'verification_id']),
+        ]
