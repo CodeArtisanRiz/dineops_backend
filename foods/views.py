@@ -135,8 +135,10 @@ class FoodItemViewSet(viewsets.ViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return FoodItem.objects.all()
-        return FoodItem.objects.filter(tenant=user.tenant)
+        #     return FoodItem.objects.all()
+        # return FoodItem.objects.filter(tenant=user.tenant)
+            return FoodItem.objects.select_related('tenant', 'category', 'created_by').all()
+        return FoodItem.objects.select_related('tenant', 'category', 'created_by').filter(tenant=user.tenant)
 
     def list(self, request):
         queryset = self.get_queryset()

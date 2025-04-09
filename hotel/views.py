@@ -286,8 +286,21 @@ class BookingViewSet(viewsets.ViewSet):
     def get_queryset(self):
         user = self.request.user
         if user.is_superuser:
-            return Booking.objects.all()
-        return Booking.objects.filter(tenant=user.tenant)
+            return Booking.objects.select_related('tenant').prefetch_related(
+                'guests', 
+                'roombooking_set__room',
+                'roombooking_set__checkin_set',
+                'roombooking_set__checkout_set'
+            ).all()
+        return Booking.objects.select_related('tenant').prefetch_related(
+            'guests', 
+            'roombooking_set__room',
+            'roombooking_set__checkin_set',
+            'roombooking_set__checkout_set'
+        ).filter(tenant=user.tenant)
+        # if user.is_superuser:
+        #     return Booking.objects.all()
+        # return Booking.objects.filter(tenant=user.tenant)
 
     def create(self, request):
         user = request.user
