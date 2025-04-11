@@ -351,7 +351,11 @@ class BookingViewSet(viewsets.ViewSet):
         first_name = data.get('first_name', '')
         last_name = data.get('last_name', '')
         address_line_1 = data.get('address_line_1', '')
-        address_line_2 = data.get('address_line_2', '')
+        address_line_2 = data.get('address_line_2', ''),
+        city = data.get('city', '')
+        state = data.get('state', '')
+        country = data.get('country', '')
+        pin = data.get('pin', '')
         dob = data.get('dob', None)
 
         guest_id = get_or_create_user(
@@ -363,6 +367,11 @@ class BookingViewSet(viewsets.ViewSet):
             phone=phone,
             address_line_1=address_line_1,
             address_line_2=address_line_2,
+            city=city,
+            state=state,
+            country=country,
+            pin=pin,
+            # dob=dob,
             password=data.get(dob, 'default_password'),
             tenant=tenant
         )
@@ -794,6 +803,10 @@ class CheckInViewSet(viewsets.ViewSet):
                     phone=guest['phone'],
                     address_line_1=guest['address_line_1'],
                     address_line_2=guest['address_line_2'],
+                    city=guest.get('city', ''),  # Added
+                    state=guest.get('state', ''),  # Added
+                    country=guest.get('country', ''),  # Added
+                    pin=guest.get('pin', ''),  # Added
                     password=guest['dob'] or 'guest',  # Default password, can be changed later
                     tenant=request.user.tenant
                 )

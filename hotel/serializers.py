@@ -74,7 +74,9 @@ class ServiceSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 'address_line_1', 'address_line_2']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'phone', 
+                 'address_line_1', 'address_line_2', 'city', 'state', 'country', 'pin']
+        # fields = '__all__'
 
 class BookingSerializer(serializers.ModelSerializer):
     rooms = RoomBookingSerializer(source='roombooking_set', many=True, read_only=True)
@@ -117,11 +119,13 @@ class GuestDetailsSerializer(serializers.ModelSerializer):
         fields = ['coming_from', 'going_to', 'purpose', 'guest_id', 'foreigner', 'c_form']
 
 class GuestUserSerializer(serializers.ModelSerializer):
-    guest_details = GuestDetailsSerializer(read_only=True)  # Include GuestDetails
+    guest_details = GuestDetailsSerializer(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 'address_line_1', 'address_line_2', 'guest_details']
+        fields = ['id', 'email', 'first_name', 'last_name', 'phone', 
+                 'address_line_1', 'address_line_2', 'city', 'state', 
+                 'country', 'pin', 'guest_details']
 
 class CheckInSerializer(serializers.ModelSerializer):
     guests = GuestUserSerializer(many=True, read_only=True)

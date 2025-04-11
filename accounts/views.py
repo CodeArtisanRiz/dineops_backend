@@ -295,6 +295,10 @@ class CustomerRegistrationView(APIView):
             'last_name': request.data.get('last_name', ''),
             'address_line_1': request.data.get('address_line_1', ''),
             'address_line_2': request.data.get('address_line_2', ''),
+            'city': request.data.get('city', ''),
+            'state': request.data.get('state', ''),
+            'country': request.data.get('country', ''),
+            'pin': request.data.get('pin', ''),
             'dob': request.data.get('dob'),
             'is_verified': False,
         }

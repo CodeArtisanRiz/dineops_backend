@@ -142,6 +142,10 @@ class User(AbstractUser):
     dob = models.DateField(null=True, blank=True)
     is_verified = models.BooleanField(default=True)
     # identification = models.JSONField(default=list, blank=True)  # Remove this field
+    city = models.CharField(max_length=100, null=True, blank=True)
+    state = models.CharField(max_length=100, null=True, blank=True)
+    country = models.CharField(max_length=100, null=True, blank=True)
+    pin = models.CharField(max_length=20, null=True, blank=True)
 
     def __str__(self):
         return self.username
