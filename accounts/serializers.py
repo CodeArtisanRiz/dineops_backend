@@ -36,6 +36,8 @@ class TenantSerializer(serializers.ModelSerializer):
             'website',
             'logo',
             'tables',
+            'fssai',
+            'hsn',
             
             # GST Rates - all optional and flexible
             'restaurant_cgst',

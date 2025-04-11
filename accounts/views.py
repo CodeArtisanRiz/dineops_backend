@@ -1,26 +1,23 @@
+# Remove duplicate imports and organize them
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+from datetime import timedelta
+import requests
+import json
+import logging
+import random
+import string
 from .models import Tenant, PhoneVerification
 from .serializers import UserSerializer, TenantSerializer, TableSerializer, PhoneVerificationSerializer
-from utils.permissions import IsSuperuser, IsTenantAdmin
-import requests
-import json  # Import json module
-import logging
+from utils.permissions import IsSuperuser, IsTenantAdmin, IsManager
 from utils.image_upload import handle_image_upload
-from datetime import timezone, datetime  # Import datetime module
-from datetime import timedelta
-from django.utils import timezone
-# from utils.firebase_auth import send_phone_verification, verify_phone_code
-from .models import PhoneVerification
 from utils.otp_auth import generate_verification_data, verify_otp
-
-
-
-
-# Add these imports at the top
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
@@ -49,7 +46,7 @@ class TenantViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         elif self.action in ['update', 'partial_update']:
-            permission_classes = [IsSuperuser | IsTenantAdmin]
+            permission_classes = [IsSuperuser | IsTenantAdmin | IsManager]
         else:
             permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
@@ -131,8 +128,8 @@ class TenantViewSet(viewsets.ModelViewSet):
             request.data['logo'] = json.dumps(logo_urls)
             request.data._mutable = False
 
-        # Track modifications
-        tenant.modified_at.append(datetime.now(timezone.utc).isoformat())
+        # Track modifications using Django's timezone
+        tenant.modified_at.append(timezone.now().isoformat())
         tenant.modified_by.append(f"{user.username}({user.id})")
         tenant.save()
 

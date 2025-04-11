@@ -25,6 +25,8 @@ class Tenant(models.Model):
     gst_no = models.CharField(max_length=15, null=True, blank=True)
     # Preferences and settings
     logo = models.JSONField(default=list)  # Changed from URLField to JSONField
+    fssai = models.JSONField(default=list)
+    hsn = models.JSONField(default=list)
     # Other
     modified_at = models.JSONField(default=list, blank=True)
     modified_by = models.JSONField(default=list, blank=True)
