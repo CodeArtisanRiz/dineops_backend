@@ -38,6 +38,10 @@ class OrderSerializer(serializers.ModelSerializer):
             "phone": obj.customer.phone,
             "address_line_1": obj.customer.address_line_1,
             "address_line_2": obj.customer.address_line_2,
+            "city": obj.customer.city,
+            "state": obj.customer.state,
+            "country": obj.customer.country,
+            "pin": obj.customer.pin,
         }
 
     def validate(self, data):

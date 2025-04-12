@@ -44,6 +44,10 @@ class OrderViewSet(viewsets.ModelViewSet):
                     phone=data.get('phone'),
                     address_line_1=data.get('address_line_1', ''),
                     address_line_2=data.get('address_line_2', ''),
+                    city=data.get('city', ''),
+                    state=data.get('state', ''),
+                    country=data.get('country', ''),
+                    pin=data.get('pin', ''),
                     password='customer',
                     tenant=tenant
                 )
@@ -176,6 +180,11 @@ class OrderViewSet(viewsets.ModelViewSet):
                         phone=data.get('phone', order.customer.phone),
                         address_line_1=data.get('address_line_1', ''),
                         address_line_2=data.get('address_line_2', ''),
+                        city=data.get('city', ''),
+                        state=data.get('state', ''),
+                        country=data.get('country', ''),
+                        pin=data.get('pin', ''),
+
                         password=None,
                         tenant=request.user.tenant
                     )
