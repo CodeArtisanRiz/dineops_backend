@@ -229,7 +229,12 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-        'billing': {  # Assuming your app is named 'billing'
+        'billing': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'accounts': {  # <-- Add this block
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,

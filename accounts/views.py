@@ -5,16 +5,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
-import requests
 import json
 import logging
 import random
 import string
 from .models import Tenant, PhoneVerification
-from .serializers import UserSerializer, TenantSerializer, TableSerializer, PhoneVerificationSerializer
+from .serializers import UserSerializer, TenantSerializer
 from utils.permissions import IsSuperuser, IsTenantAdmin, IsManager
 from utils.image_upload import handle_image_upload
 from utils.otp_auth import generate_verification_data, verify_otp
@@ -25,6 +23,92 @@ import random
 import string
 
 logger = logging.getLogger(__name__)
+
+# class TenantViewSet(viewsets.ModelViewSet):
+#     queryset = Tenant.objects.all()
+#     serializer_class = TenantSerializer
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         if user.is_superuser:
+#             queryset = Tenant.objects.all()
+#         elif user.role in ['admin', 'manager']:
+#             queryset = Tenant.objects.filter(id=user.tenant_id)
+#         else:
+#             queryset = Tenant.objects.none()
+        
+#         logger.debug(f"User: {user.username}, Role: {user.role}, Queryset: {queryset}")
+#         return queryset
+
+#     def get_permissions(self):
+#         if self.action in ['list', 'retrieve']:
+#             permission_classes = [IsAuthenticated]
+#         # Only superuser can update or partially update
+#         elif self.action in ['update', 'partial_update']:
+#             permission_classes = [IsSuperuser]
+#         else:
+#             permission_classes = [IsSuperuser]
+#         return [permission() for permission in permission_classes]
+
+#     def create(self, request):
+#         user = self.request.user
+#         if not user.is_superuser:
+#             raise PermissionDenied("You do not have permission to perform this action.")
+#         # Handle logo upload and other operations
+#         logo_urls = handle_image_upload(request, request.data.get('name'), 'logo', 'logo')
+#         if logo_urls:
+#             request.data._mutable = True
+#             request.data['logo'] = json.dumps(logo_urls)
+#             request.data._mutable = False
+
+#         serializer = TenantSerializer(data=request.data)
+#         if serializer.is_valid():
+#             tenant = serializer.save()
+#             return Response(serializer.data, status=status.HTTP_201_CREATED)
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+#     def update(self, request, *args, **kwargs):
+#         user = self.request.user
+#         tenant = self.get_object()
+
+#         if not user.is_superuser:
+#             raise PermissionDenied("You do not have permission to perform this action.")
+
+#         data = request.data.copy()
+#         logo_urls = handle_image_upload(request, tenant.name, 'logo', 'logo')
+#         if logo_urls:
+#             data['logo'] = json.dumps(logo_urls)
+
+#         # Use self.partial for PATCH, or pass partial=partial for DRF compatibility
+#         partial = kwargs.get('partial', False)
+#         serializer = self.get_serializer(tenant, data=data, partial=partial)
+#         serializer.is_valid(raise_exception=True)
+
+#         # Update modification history
+#         # Only update if the field is actually being changed
+#         if 'name' in data or partial:
+#             # Append to modification history
+#             modified_at = tenant.modified_at or []
+#             modified_by = tenant.modified_by or []
+#             from django.utils import timezone
+#             modified_at.append(timezone.now().isoformat())
+#             modified_by.append(f"{user.username}({user.id})")
+#             tenant.modified_at = modified_at
+#             tenant.modified_by = modified_by
+
+#         serializer.save()
+
+#         return Response(serializer.data)
+
+#     # def remove_tables(self, tenant, count):
+#     #     tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
+#     #     for table in tables_to_delete:
+#     #         table.delete()
+
+#     # def remove_tables(self, tenant, count):
+#     #     tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
+#     #     for table in tables_to_delete:
+#     #         table.delete()
 
 class TenantViewSet(viewsets.ModelViewSet):
     queryset = Tenant.objects.all()
@@ -46,7 +130,7 @@ class TenantViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         elif self.action in ['update', 'partial_update']:
-            permission_classes = [IsSuperuser | IsTenantAdmin | IsManager]
+            permission_classes = [IsSuperuser | IsTenantAdmin]
         else:
             permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
@@ -56,35 +140,8 @@ class TenantViewSet(viewsets.ModelViewSet):
         if not user.is_superuser:
             raise PermissionDenied("You do not have permission to perform this action.")
 
-        # Set default GST rates if not provided
-        request.data._mutable = True
-        
-        # Restaurant GST defaults
-        if 'restaurant_cgst' not in request.data:
-            request.data['restaurant_cgst'] = '2.50'
-            request.data['restaurant_sgst'] = '2.50'
-
-        # Hotel GST defaults (if hotel feature is enabled)
-        if request.data.get('has_hotel_feature'):
-            if 'hotel_cgst_lower' not in request.data:
-                request.data['hotel_cgst_lower'] = '6.00'
-                request.data['hotel_sgst_lower'] = '6.00'
-                request.data['hotel_cgst_upper'] = '9.00'
-                request.data['hotel_sgst_upper'] = '9.00'
-                request.data['hotel_gst_limit_margin'] = '7500.00'
-
-            # Service GST defaults
-            if 'service_cgst_lower' not in request.data:
-                request.data['service_cgst_lower'] = '9.00'
-                request.data['service_sgst_lower'] = '9.00'
-                request.data['service_cgst_upper'] = '14.00'
-                request.data['service_sgst_upper'] = '14.00'
-                # service_gst_limit_margin is optional, so not setting a default
-
-        request.data._mutable = False
-
         # Handle logo upload and other operations
-        logo_urls = handle_image_upload(request, request.data.get('tenant_name'), 'logo', 'logo')
+        logo_urls = handle_image_upload(request, request.data.get('name'), 'logo', 'logo')
         if logo_urls:
             request.data._mutable = True
             request.data['logo'] = json.dumps(logo_urls)
@@ -100,26 +157,10 @@ class TenantViewSet(viewsets.ModelViewSet):
         user = self.request.user
         tenant = self.get_object()
 
+        logger.info(f"User '{user.username}' (ID: {user.id}, Role: {getattr(user, 'role', None)}) is attempting to update Tenant '{tenant.tenant_name}' (ID: {tenant.id})")
+
         if not user.is_superuser and tenant.id != user.tenant_id:
             raise PermissionDenied("You do not have permission to perform this action.")
-
-        # Check if GST rates are being updated by a non-superuser
-        gst_fields = [
-            'restaurant_cgst', 'restaurant_sgst',
-            'hotel_cgst_lower', 'hotel_sgst_lower',
-            'hotel_cgst_upper', 'hotel_sgst_upper',
-            'hotel_gst_limit_margin',
-            'service_cgst_lower', 'service_sgst_lower',
-            'service_cgst_upper', 'service_sgst_upper',
-            'service_gst_limit_margin'
-        ]
-        
-        if not user.is_superuser:
-            for field in gst_fields:
-                if field in request.data:
-                    raise PermissionDenied(
-                        "Only superusers can update GST rates and margins."
-                    )
 
         # Handle logo upload and continue with update
         logo_urls = handle_image_upload(request, tenant.tenant_name, 'logo', 'logo')
@@ -128,12 +169,50 @@ class TenantViewSet(viewsets.ModelViewSet):
             request.data['logo'] = json.dumps(logo_urls)
             request.data._mutable = False
 
-        # Track modifications using Django's timezone
-        tenant.modified_at.append(timezone.now().isoformat())
+        # Track modifications
+        tenant.modified_at.append(datetime.now(timezone.utc).isoformat())
         tenant.modified_by.append(f"{user.username}({user.id})")
         tenant.save()
 
         return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, pk=None):
+        user = self.request.user
+        tenant = self.get_object()
+
+        logger.info(f"User '{user.username}' (ID: {user.id}, Role: {getattr(user, 'role', None)}) is attempting to PATCH Tenant '{tenant.tenant_name}' (ID: {tenant.id})")
+
+        # Superuser: can update anything
+        if user.is_superuser:
+            data = request.data.copy()
+            logo_urls = handle_image_upload(request, tenant.tenant_name, 'logo', 'logo')
+            if logo_urls:
+                data['logo'] = json.dumps(logo_urls)
+            serializer = self.get_serializer(tenant, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            tenant.modified_at = (tenant.modified_at or []) + [timezone.now().isoformat()]
+            tenant.modified_by = (tenant.modified_by or []) + [f"{user.username}({user.id})"]
+            serializer.save()
+            return Response(serializer.data)
+
+        # Admin: can only update tenant_name of their own tenant
+        elif user.role == 'admin' and tenant.id == user.tenant_id:
+            if set(request.data.keys()) - {'tenant_name'}:
+                return Response(
+                    {"detail": "Admin can only update the tenant_name."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            data = {'tenant_name': request.data.get('tenant_name')}
+            serializer = self.get_serializer(tenant, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            tenant.modified_at = (tenant.modified_at or []) + [timezone.now().isoformat()]
+            tenant.modified_by = (tenant.modified_by or []) + [f"{user.username}({user.id})"]
+            serializer.save()
+            return Response(serializer.data)
+
+        # Others: forbidden
+        else:
+            raise PermissionDenied("You do not have permission to perform this action.")
 
     def remove_tables(self, tenant, count):
         tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]

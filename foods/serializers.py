@@ -79,12 +79,12 @@ class FoodItemSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(  # Removed source argument
         queryset=Category.objects.all()  # Keep this as the primary key related field
     )
-    category_name = serializers.SerializerMethodField() # Custom field to return the category name
+    # category_name = serializers.SerializerMethodField() # Custom field to return the category name
 
     class Meta:
         model = FoodItem
         fields = ['id', 'tenant', 'name', 'description', 'price', 'image', 'veg', 'category',
-                  'category_name', #returned category name
+                #   'category_name', #returned category name
                   'status', 'created_at', 'modified_at', 'created_by', 'modified_by']
         read_only_fields = ['created_at', 'modified_at', 'created_by', 'modified_by']  # Ensure these fields are read-only
         extra_kwargs = {'tenant': {'required': False}}  # Make tenant not required
