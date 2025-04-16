@@ -9,8 +9,6 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 import logging
-import random
-import string
 from .models import Tenant, PhoneVerification
 from .serializers import UserSerializer, TenantSerializer
 from utils.permissions import IsSuperuser, IsTenantAdmin, IsManager
@@ -23,92 +21,6 @@ import random
 import string
 
 logger = logging.getLogger(__name__)
-
-# class TenantViewSet(viewsets.ModelViewSet):
-#     queryset = Tenant.objects.all()
-#     serializer_class = TenantSerializer
-
-#     def get_queryset(self):
-#         user = self.request.user
-#         if user.is_superuser:
-#             queryset = Tenant.objects.all()
-#         elif user.role in ['admin', 'manager']:
-#             queryset = Tenant.objects.filter(id=user.tenant_id)
-#         else:
-#             queryset = Tenant.objects.none()
-        
-#         logger.debug(f"User: {user.username}, Role: {user.role}, Queryset: {queryset}")
-#         return queryset
-
-#     def get_permissions(self):
-#         if self.action in ['list', 'retrieve']:
-#             permission_classes = [IsAuthenticated]
-#         # Only superuser can update or partially update
-#         elif self.action in ['update', 'partial_update']:
-#             permission_classes = [IsSuperuser]
-#         else:
-#             permission_classes = [IsSuperuser]
-#         return [permission() for permission in permission_classes]
-
-#     def create(self, request):
-#         user = self.request.user
-#         if not user.is_superuser:
-#             raise PermissionDenied("You do not have permission to perform this action.")
-#         # Handle logo upload and other operations
-#         logo_urls = handle_image_upload(request, request.data.get('name'), 'logo', 'logo')
-#         if logo_urls:
-#             request.data._mutable = True
-#             request.data['logo'] = json.dumps(logo_urls)
-#             request.data._mutable = False
-
-#         serializer = TenantSerializer(data=request.data)
-#         if serializer.is_valid():
-#             tenant = serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-#     def update(self, request, *args, **kwargs):
-#         user = self.request.user
-#         tenant = self.get_object()
-
-#         if not user.is_superuser:
-#             raise PermissionDenied("You do not have permission to perform this action.")
-
-#         data = request.data.copy()
-#         logo_urls = handle_image_upload(request, tenant.name, 'logo', 'logo')
-#         if logo_urls:
-#             data['logo'] = json.dumps(logo_urls)
-
-#         # Use self.partial for PATCH, or pass partial=partial for DRF compatibility
-#         partial = kwargs.get('partial', False)
-#         serializer = self.get_serializer(tenant, data=data, partial=partial)
-#         serializer.is_valid(raise_exception=True)
-
-#         # Update modification history
-#         # Only update if the field is actually being changed
-#         if 'name' in data or partial:
-#             # Append to modification history
-#             modified_at = tenant.modified_at or []
-#             modified_by = tenant.modified_by or []
-#             from django.utils import timezone
-#             modified_at.append(timezone.now().isoformat())
-#             modified_by.append(f"{user.username}({user.id})")
-#             tenant.modified_at = modified_at
-#             tenant.modified_by = modified_by
-
-#         serializer.save()
-
-#         return Response(serializer.data)
-
-#     # def remove_tables(self, tenant, count):
-#     #     tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
-#     #     for table in tables_to_delete:
-#     #         table.delete()
-
-#     # def remove_tables(self, tenant, count):
-#     #     tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
-#     #     for table in tables_to_delete:
-#     #         table.delete()
 
 class TenantViewSet(viewsets.ModelViewSet):
     queryset = Tenant.objects.all()
@@ -130,7 +42,7 @@ class TenantViewSet(viewsets.ModelViewSet):
         if self.action in ['list', 'retrieve']:
             permission_classes = [IsAuthenticated]
         elif self.action in ['update', 'partial_update']:
-            permission_classes = [IsSuperuser | IsTenantAdmin]
+            permission_classes = [IsSuperuser | IsTenantAdmin | IsManager]
         else:
             permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
@@ -180,7 +92,10 @@ class TenantViewSet(viewsets.ModelViewSet):
         user = self.request.user
         tenant = self.get_object()
 
-        logger.info(f"User '{user.username}' (ID: {user.id}, Role: {getattr(user, 'role', None)}) is attempting to PATCH Tenant '{tenant.tenant_name}' (ID: {tenant.id})")
+        logger.info(
+            f"PATCH Tenant: user={user.username}, role={getattr(user, 'role', None)}, "
+            f"user.tenant_id={getattr(user, 'tenant_id', None)}, tenant.id={tenant.id}, data_keys={list(request.data.keys())}"
+        )
 
         # Superuser: can update anything
         if user.is_superuser:
@@ -195,14 +110,17 @@ class TenantViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response(serializer.data)
 
-        # Admin: can only update tenant_name of their own tenant
-        elif user.role == 'admin' and tenant.id == user.tenant_id:
-            if set(request.data.keys()) - {'tenant_name'}:
+        # Admin or Manager: can update all fields except has_hotel_feature
+        elif user.role in ['admin', 'manager'] and tenant.id == getattr(user, 'tenant_id', None):
+            if 'has_hotel_feature' in request.data:
                 return Response(
-                    {"detail": "Admin can only update the tenant_name."},
+                    {"detail": "Admin/Manager cannot update has_hotel_feature."},
                     status=status.HTTP_403_FORBIDDEN
                 )
-            data = {'tenant_name': request.data.get('tenant_name')}
+            data = request.data.copy()
+            logo_urls = handle_image_upload(request, tenant.tenant_name, 'logo', 'logo')
+            if logo_urls:
+                data['logo'] = json.dumps(logo_urls)
             serializer = self.get_serializer(tenant, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
             tenant.modified_at = (tenant.modified_at or []) + [timezone.now().isoformat()]
@@ -212,6 +130,10 @@ class TenantViewSet(viewsets.ModelViewSet):
 
         # Others: forbidden
         else:
+            logger.warning(
+                f"Permission denied for user={user.username}, role={getattr(user, 'role', None)}, "
+                f"user.tenant_id={getattr(user, 'tenant_id', None)}, tenant.id={tenant.id}"
+            )
             raise PermissionDenied("You do not have permission to perform this action.")
 
     def remove_tables(self, tenant, count):
