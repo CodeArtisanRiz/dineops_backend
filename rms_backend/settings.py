@@ -31,10 +31,13 @@ SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
 if DEBUG:
     ALLOWED_HOSTS = [
-        '127.0.0.1'
+        '127.0.0.1',
+        'localhost',
+        '0.0.0.0',
+        'web'  # Docker service name
     ]
 else:
-    ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1', cast=Csv())
+    ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,0.0.0.0,web', cast=Csv())
 
 # Application definition
 
