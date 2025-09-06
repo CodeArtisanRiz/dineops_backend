@@ -23,16 +23,26 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy project
 COPY . /app/
 
-# Collect static files                                                                                       │
-# RUN python manage.py collectstatic --noinput                                                                 │
+# Create staticfiles directory
+RUN mkdir -p /app/staticfiles
 
-# Expose port
-EXPOSE 8001
+# Collect static files with minimal environment variables to avoid database connection issues
+# We provide dummy values for the required database environment variables
+RUN MYSQL_DB_NAME=dummy \
+    MYSQL_USER=dummy \
+    MYSQL_PASSWORD=dummy \
+    MYSQL_HOST=dummy \
+    MYSQL_PORT=3306 \
+    SECRET_KEY=dummy-secret-key \
+    python manage.py collectstatic --noinput --verbosity=0
 
 # Create a non-root user and switch to it
 RUN adduser --disabled-password --gecos '' appuser
 RUN chown -R appuser:appuser /app
 USER appuser
+
+# Expose port
+EXPOSE 8001
 
 # Run the application
 CMD ["gunicorn", "--bind", "0.0.0.0:8001", "rms_backend.wsgi:application"]

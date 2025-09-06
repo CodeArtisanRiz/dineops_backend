@@ -28,15 +28,12 @@ sleep 10
 echo "Running database migrations..."
 docker-compose exec web python manage.py migrate
 
-echo "Collecting static files..."
-docker-compose exec web python manage.py collectstatic --noinput
-
 echo ""
 echo "Setup complete!"
 echo "---------------"
-echo "API: http://localhost:8000/"
-echo "API Documentation: http://localhost:8000/docs/"
-echo "Admin Interface: http://localhost:8000/admin/"
+echo "API: http://localhost:8001/"
+echo "API Documentation: http://localhost:8001/docs/"
+echo "Admin Interface: http://localhost:8001/admin/"
 echo ""
 echo "To create a superuser, run: docker-compose exec web python manage.py createsuperuser"
 echo "To stop the services, run: docker-compose down"

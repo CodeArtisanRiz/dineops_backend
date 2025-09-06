@@ -38,6 +38,7 @@ This document explains how to set up and run the DineOps backend using Docker an
    ```
 
    This will start the Django application service and connect to your existing MySQL database.
+   Static files are automatically collected during the build process.
 
 4. **Database Migration** (First time only):
    In a new terminal, run the database migrations:
@@ -50,16 +51,11 @@ This document explains how to set up and run the DineOps backend using Docker an
    docker-compose exec web python manage.py createsuperuser
    ```
 
-6. **Collect Static Files** (if not already done during build):
-   ```bash
-   docker-compose exec web python manage.py collectstatic --noinput
-   ```
-
 ## Accessing the Application
 
-- **API**: http://localhost:8000/
-- **API Documentation**: http://localhost:8000/docs/
-- **Admin Interface**: http://localhost:8000/admin/
+- **API**: http://localhost:8001/
+- **API Documentation**: http://localhost:8001/docs/
+- **Admin Interface**: http://localhost:8001/admin/
 
 ## Stopping the Service
 

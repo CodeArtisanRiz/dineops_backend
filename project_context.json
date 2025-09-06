@@ -1,0 +1,346 @@
+{
+  "project_name": "DineOps Backend",
+  "description": "A multi-tenant restaurant management system built with Django and Django REST framework",
+  "technologies": {
+    "framework": "Django 5.0.7",
+    "database": "MySQL (with plans to port to MongoDB Atlas)",
+    "authentication": "Django REST Framework Simple JWT",
+    "api_documentation": "drf-yasg (Swagger/OpenAPI)",
+    "other": [
+      "Django CORS Headers",
+      "Pillow",
+      "Requests",
+      "Python Decouple",
+      "Gunicorn",
+      "WhiteNoise",
+      "PyMySQL"
+    ]
+  },
+  "core_features": [
+    "User authentication with token management (access and refresh tokens)",
+    "Tenant-specific data isolation",
+    "CRUD operations for food items",
+    "Multi-tenant architecture",
+    "Support for optional hotel management add-on",
+    "Real-time data updates (planned)"
+  ],
+  "apps": {
+    "accounts": {
+      "description": "User and tenant management",
+      "models": [
+        "Tenant",
+        "User (extends AbstractUser)"
+      ],
+      "key_fields": {
+        "Tenant": [
+          "tenant_name",
+          "has_hotel_feature",
+          "total_tables",
+          "address fields",
+          "contact information",
+          "gst_no",
+          "logo",
+          "subscription dates",
+          "GST rates for restaurant, hotel, and services"
+        ],
+        "User": [
+          "username",
+          "email",
+          "role (superuser, admin, manager, staff, customer, guest)",
+          "tenant (foreign key)",
+          "phone",
+          "address fields",
+          "dob"
+        ]
+      }
+    },
+    "foods": {
+      "description": "Food item and category management",
+      "models": [
+        "Category",
+        "FoodItem",
+        "Table"
+      ],
+      "key_fields": {
+        "Category": [
+          "tenant (foreign key)",
+          "name",
+          "description",
+          "image",
+          "status"
+        ],
+        "FoodItem": [
+          "tenant (foreign key)",
+          "name",
+          "description",
+          "price",
+          "image",
+          "category (foreign key)",
+          "veg (boolean)",
+          "status"
+        ],
+        "Table": [
+          "tenant (foreign key)",
+          "table_number",
+          "occupied (boolean)",
+          "order (integer)"
+        ]
+      }
+    },
+    "order": {
+      "description": "Order management",
+      "models": [
+        "Order"
+      ],
+      "key_fields": {
+        "Order": [
+          "tenant (foreign key)",
+          "customer (foreign key to User)",
+          "status (in_progress, on_hold, kot, served, settled, cancelled)",
+          "order_type (take_away, dine_in, delivery, online, hotel)",
+          "tables (many-to-many to Table)",
+          "room_id (foreign key to Room)",
+          "booking_id (foreign key to Booking)",
+          "food_items (many-to-many to FoodItem)",
+          "quantity",
+          "notes",
+          "kot_count",
+          "total"
+        ]
+      }
+    },
+    "hotel": {
+      "description": "Hotel management features",
+      "models": [
+        "Room",
+        "ServiceCategory",
+        "Service",
+        "Booking",
+        "RoomBooking",
+        "CheckIn",
+        "CheckOut",
+        "ServiceUsage",
+        "GuestDetails"
+      ],
+      "key_fields": {
+        "Room": [
+          "room_number",
+          "room_type",
+          "beds",
+          "amenities",
+          "price",
+          "description",
+          "image",
+          "tenant (foreign key)",
+          "status (available, maintenance, cleaning)"
+        ],
+        "Booking": [
+          "tenant (foreign key)",
+          "booking_date",
+          "status",
+          "guests (many-to-many to User)",
+          "advance",
+          "total_amount",
+          "id_card"
+        ]
+      }
+    },
+    "billing": {
+      "description": "Billing and payment management",
+      "models": [
+        "Bill",
+        "BillPayment"
+      ],
+      "key_fields": {
+        "Bill": [
+          "tenant (foreign key)",
+          "bill_no",
+          "bill_type (HOT for Hotel, RES for Restaurant)",
+          "customer_gst",
+          "order_id (foreign key to Order)",
+          "booking_id (foreign key to Booking)",
+          "total",
+          "discount",
+          "gst breakdown fields",
+          "sgst_amount",
+          "cgst_amount",
+          "net_amount",
+          "status (cancelled, unpaid, paid, partial)"
+        ],
+        "BillPayment": [
+          "bill_id (foreign key to Bill)",
+          "bill_amount",
+          "paid_amount",
+          "payment_method (cash, card, upi, net_banking, other)",
+          "payment_date",
+          "payment_details"
+        ]
+      }
+    }
+  },
+  "api_endpoints": {
+    "authentication": [
+      {
+        "url": "/api/accounts/token/",
+        "method": "POST",
+        "permissions": "Public",
+        "description": "Obtain a new access and refresh token"
+      },
+      {
+        "url": "/api/accounts/token/refresh/",
+        "method": "POST",
+        "permissions": "Public",
+        "description": "Refresh the access token using the refresh token"
+      }
+    ],
+    "tenants": [
+      {
+        "url": "/api/accounts/tenants/",
+        "method": "POST",
+        "permissions": "Superuser",
+        "description": "Create a new tenant"
+      },
+      {
+        "url": "/api/accounts/tenants/",
+        "method": "GET",
+        "permissions": "Superuser/Manager/Staff",
+        "description": "Retrieve a list of all tenants"
+      },
+      {
+        "url": "/api/accounts/tenants/{id}/",
+        "method": "GET",
+        "permissions": "Superuser",
+        "description": "Retrieve details of a specific tenant"
+      },
+      {
+        "url": "/api/accounts/tenants/{id}/",
+        "method": "PUT",
+        "permissions": "Superuser",
+        "description": "Update details of a specific tenant"
+      },
+      {
+        "url": "/api/accounts/tenants/{id}/",
+        "method": "DELETE",
+        "permissions": "Superuser",
+        "description": "Delete a specific tenant"
+      }
+    ],
+    "tables": [
+      {
+        "url": "/api/accounts/tables/",
+        "method": "GET",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Retrieve a list of tables"
+      },
+      {
+        "url": "/api/accounts/tables/{id}/",
+        "method": "GET",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Retrieve details of a specific table"
+      },
+      {
+        "url": "/api/accounts/tables/",
+        "method": "POST",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Create a table"
+      },
+      {
+        "url": "/api/accounts/tables/{id}/",
+        "method": "PUT",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Update a table"
+      },
+      {
+        "url": "/api/accounts/tables/{id}/",
+        "method": "DELETE",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Delete a table"
+      }
+    ],
+    "users": [
+      {
+        "url": "/api/accounts/users/",
+        "method": "POST",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Create a new user"
+      },
+      {
+        "url": "/api/accounts/users/",
+        "method": "GET",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Retrieve a list of users"
+      },
+      {
+        "url": "/api/accounts/users/{id}/",
+        "method": "GET",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Retrieve details of a specific user"
+      },
+      {
+        "url": "/api/accounts/users/{id}/",
+        "method": "PUT",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Update details of a specific user"
+      },
+      {
+        "url": "/api/accounts/users/{id}/",
+        "method": "DELETE",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Delete a specific user"
+      }
+    ],
+    "food_items": [
+      {
+        "url": "/api/foods/fooditems/",
+        "method": "POST",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Create a new food item"
+      },
+      {
+        "url": "/api/foods/fooditems/",
+        "method": "GET",
+        "permissions": "Admin/Manager/Superuser",
+        "description": "Retrieve a list of food items"
+      },
+      {
+        "url": "/api/foods/fooditems/{id}/",
+        "method": "GET",
+        "permissions": "Admin/Manager/Superuser",
+        "description": "Retrieve details of a specific food item"
+      },
+      {
+        "url": "/api/foods/fooditems/{id}/",
+        "method": "PUT",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Update details of a specific food item"
+      },
+      {
+        "url": "/api/foods/fooditems/{id}/",
+        "method": "DELETE",
+        "permissions": "Superuser/Admin/Manager",
+        "description": "Delete a specific food item"
+      }
+    ]
+  },
+  "deployment": {
+    "server": "Gunicorn",
+    "static_files": "WhiteNoise",
+    "environment_variables": [
+      "SECRET_KEY",
+      "DEBUG",
+      "ALLOWED_HOSTS",
+      "MYSQL_DB_NAME",
+      "MYSQL_USER",
+      "MYSQL_PASSWORD",
+      "MYSQL_HOST",
+      "MYSQL_PORT"
+    ]
+  },
+  "authentication": {
+    "jwt_settings": {
+      "access_token_lifetime": "60 minutes",
+      "refresh_token_lifetime": "7 days",
+      "auth_header_types": "Bearer"
+    }
+  }
+}
