@@ -24,10 +24,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # Collect static files                                                                                       │
-RUN python manage.py collectstatic --noinput                                                                 │
+# RUN python manage.py collectstatic --noinput                                                                 │
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8001
 
 # Create a non-root user and switch to it
 RUN adduser --disabled-password --gecos '' appuser
@@ -35,4 +35,4 @@ RUN chown -R appuser:appuser /app
 USER appuser
 
 # Run the application
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "rms_backend.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8001", "rms_backend.wsgi:application"]
