@@ -1,0 +1,82 @@
+{
+  "project_name": "dineops_backend",
+  "description": "A multi-tenant restaurant management system built with Django and Django REST framework",
+  "technology_stack": {
+    "backend": "Django 5.0.7",
+    "database": "MySQL (with SQLite fallback)",
+    "api_framework": "Django REST Framework",
+    "authentication": "JWT (Simple JWT)",
+    "documentation": "drf-yasg (Swagger/OpenAPI)"
+  },
+  "core_apps": [
+    {
+      "name": "accounts",
+      "description": "User authentication and tenant management",
+      "models": ["Tenant", "User"]
+    },
+    {
+      "name": "foods",
+      "description": "Food items and categories management",
+      "models": ["Category", "FoodItem", "Table"]
+    },
+    {
+      "name": "order",
+      "description": "Order management system",
+      "models": ["Order"]
+    },
+    {
+      "name": "hotel",
+      "description": "Hotel management features (rooms, bookings, services)",
+      "models": ["Room", "ServiceCategory", "Service", "Booking", "RoomBooking", "CheckIn", "CheckOut", "ServiceUsage", "GuestDetails"]
+    },
+    {
+      "name": "billing",
+      "description": "Billing and payment system",
+      "models": ["Bill", "BillPayment"]
+    }
+  ],
+  "authentication": {
+    "method": "JWT Bearer Token",
+    "endpoints": [
+      {
+        "url": "/api/accounts/token/",
+        "method": "POST",
+        "description": "Obtain access and refresh tokens"
+      },
+      {
+        "url": "/api/accounts/token/refresh/",
+        "method": "POST",
+        "description": "Refresh access token using refresh token"
+      }
+    ]
+  },
+  "deployment": {
+    "containerization": "Docker",
+    "server": "Gunicorn",
+    "port": 8001
+  },
+  "dependencies": [
+    "Django",
+    "djangorestframework",
+    "djangorestframework-simplejwt",
+    "django-cors-headers",
+    "Pillow",
+    "requests",
+    "drf-yasg",
+    "setuptools",
+    "python-decouple",
+    "gunicorn",
+    "whitenoise",
+    "pymysql"
+  ],
+  "key_features": [
+    "Multi-tenant architecture",
+    "User authentication with token management",
+    "Tenant-specific data isolation",
+    "CRUD operations for food items",
+    "Hotel management add-on",
+    "Order management",
+    "Billing and payment system",
+    "Role-based access control"
+  ]
+}

@@ -1,1 +1,1 @@
-web: gunicorn rms_backend.wsgi:application
+web: gunicorn dineops_backend.wsgi:application

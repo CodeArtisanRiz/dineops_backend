@@ -1,0 +1,48 @@
+# Use an official Python runtime as the base image
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        default-libmysqlclient-dev \
+        build-essential \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy project
+COPY . /app/
+
+# Create staticfiles directory
+RUN mkdir -p /app/staticfiles
+
+# Collect static files with minimal environment variables to avoid database connection issues
+# We provide dummy values for the required database environment variables
+RUN MYSQL_DB_NAME=dummy \
+    MYSQL_USER=dummy \
+    MYSQL_PASSWORD=dummy \
+    MYSQL_HOST=dummy \
+    MYSQL_PORT=3306 \
+    SECRET_KEY=dummy-secret-key \
+    python manage.py collectstatic --noinput --verbosity=0
+
+# Create a non-root user and switch to it
+RUN adduser --disabled-password --gecos '' appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE $PORT
+
+# Run the application
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT dineops_backend.wsgi:application"]

@@ -15,8 +15,8 @@ This project is a multi-tenant restaurant management system built with Django an
 ## Installation
 - Clone the repository:
 
-git clone https://github.com/CodeArtisanRiz/rms_backend.git
-cd rms_backend
+git clone https://github.com/CodeArtisanRiz/dineops_backend.git
+cd dineops_backend
 
 - Create and activate a virtual environment:
 python3 -m venv venv # On Windows use `python -m venv venv`

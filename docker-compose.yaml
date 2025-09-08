@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: dineops_backend
+    env_file:
+      - .env
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - static_volume:/app/staticfiles
+    restart: always
+
+volumes:
+  static_volume:
