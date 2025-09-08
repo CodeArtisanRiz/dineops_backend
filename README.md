@@ -20,7 +20,9 @@ cd dineops_backend
 
 ### Docker
 
-`docker-compose up -d`
+```shell
+docker-compose up -d
+```
 ### Manual(Mac/Linux)
 - Create and activate a virtual environment:
 ```python
@@ -30,7 +32,7 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-### On Windows 
+### Manual(Windows) 
 
 ```python
 python -m venv venv
