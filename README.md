@@ -1,4 +1,4 @@
-# Restaurant Management System Backend - API
+# DineOps - Restaurant & Management System Backend
 
 ## Project Overview
 This project is a multi-tenant restaurant management system built with Django and Django REST framework for the backend. It includes user authentication, food management features, and tenant-specific data management. Future features will include hotel management, POS functionality, and real-time data updates.
@@ -9,8 +9,8 @@ This project is a multi-tenant restaurant management system built with Django an
 - CRUD operations for food items
 - Multi-tenant architecture
 - Support for optional hotel management add-on
-- SQLite database (with plans to port to MongoDB Atlas)
-- Real-time data updates (planned)
+- MySQL db
+- Real-time data updates (TBA)
 
 ## Installation
 - Clone the repository:
@@ -18,11 +18,28 @@ This project is a multi-tenant restaurant management system built with Django an
 git clone https://github.com/CodeArtisanRiz/dineops_backend.git
 cd dineops_backend
 
-- Create and activate a virtual environment:
-python3 -m venv venv # On Windows use `python -m venv venv`
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+### Docker
 
-- Install the required packages and change dir:
+`docker-compose up -d`
+### Manual(Mac/Linux)
+- Create and activate a virtual environment:
+```python
+python3 -m venv venv
+```
+```python
+source venv/bin/activate
+```
+
+### On Windows 
+
+```python
+python -m venv venv
+```
+```python
+venv\Scripts\activate
+```
+
+### Install Requirements
 
 ```python
 pip install -r requirements.txt
