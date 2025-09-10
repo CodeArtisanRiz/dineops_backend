@@ -1,0 +1,71 @@
+{
+  "project_name": "dineops_backend",
+  "generated_on": "2025-09-10T09:44:09Z",
+  "project_description": "Django-based backend system for managing restaurant and hotel operations",
+  "directories": [
+    "accounts",
+    "billing",
+    "cache",
+    "dineops_backend",
+    "foods",
+    "hotel",
+    "order",
+    "scripts",
+    "staticfiles",
+    "templates",
+    "utils"
+  ],
+  "main_files": [
+    ".env",
+    "docker-compose.yaml",
+    "Dockerfile",
+    "example-env",
+    "manage.py",
+    "README.md",
+    "requirements.txt"
+  ],
+  "apps": {
+    "accounts": {
+      "description": "User and tenant management",
+      "models": ["Tenant", "User"],
+      "endpoints": ["/api/accounts/users/", "/api/accounts/tenants/"],
+      "key_files": ["models.py", "views.py", "urls.py", "serializers.py"]
+    },
+    "foods": {
+      "description": "Food items and categories",
+      "models": ["Category", "FoodItem", "Table"],
+      "endpoints": ["/api/foods/"],
+      "key_files": ["models.py", "views.py", "urls.py", "serializers.py"]
+    },
+    "order": {
+      "description": "Order processing",
+      "models": ["Order"],
+      "endpoints": ["/api/orders/"],
+      "key_files": ["models.py", "views.py", "urls.py", "serializers.py"]
+    },
+    "hotel": {
+      "description": "Hotel room and booking management",
+      "models": ["Room", "ServiceCategory", "Service", "Booking", "RoomBooking", "CheckIn", "CheckOut", "ServiceUsage", "GuestDetails"],
+      "endpoints": ["/api/hotel/"],
+      "key_files": ["models.py", "views.py", "urls.py", "serializers.py"]
+    },
+    "billing": {
+      "description": "Billing and payment processing",
+      "models": ["Bill", "BillPayment"],
+      "endpoints": ["/api/billing/"],
+      "key_files": ["models.py", "views.py", "urls.py", "serializers.py"]
+    }
+  },
+  "deployment": {
+    "containerization": "Docker",
+    "server": "Gunicorn on port 8001",
+    "static_files": "WhiteNoise served from /static/"
+  },
+  "dependencies": {
+    "framework": "Django 5.0.7",
+    "api": "Django REST Framework",
+    "authentication": "JWT",
+    "documentation": "drf-yasg (Swagger)",
+    "database": "MySQL"
+  }
+}
