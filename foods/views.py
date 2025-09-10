@@ -7,10 +7,10 @@ import requests
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 import logging
-import json  # Import json module
+import json
 from foods.models import Table
 from foods.serializers import TableSerializer
-
+from drf_yasg.utils import swagger_auto_schema
 
 from .models import FoodItem, Category, Tenant
 from .serializers import FoodItemSerializer, CategorySerializer
@@ -18,31 +18,38 @@ from utils.image_upload import handle_image_upload
 
 logger = logging.getLogger(__name__)
 
-class CategoryViewSet(viewsets.ViewSet):
+class CategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = CategorySerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return Category.objects.none()
         user = self.request.user
         if user.is_superuser:
             return Category.objects.all()
         return Category.objects.filter(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Food Categories'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = CategorySerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Food Categories'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         category = get_object_or_404(queryset, pk=pk)
         serializer = CategorySerializer(category)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Food Categories'])
     def create(self, request):
         user = self.request.user
         if user.is_superuser:
             tenant_id = request.data.get('tenant')
-            category_id = request.data.get('category')  # Change from 'category_id' to 'category'
+            category_id = request.data.get('category')
             if not tenant_id:
                 raise PermissionDenied("Superuser must include tenant ID in request.")
             tenant = get_object_or_404(Tenant, id=tenant_id)
@@ -79,6 +86,7 @@ class CategoryViewSet(viewsets.ViewSet):
         else:
             raise PermissionDenied("You do not have permission to perform this action.")
 
+    @swagger_auto_schema(tags=['Food Categories'])
     def update(self, request, pk=None):
         user = self.request.user
         if not user.is_superuser and user.role not in ['admin', 'manager']:
@@ -104,6 +112,7 @@ class CategoryViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Food Categories'])
     def partial_update(self, request, pk=None):
         user = self.request.user
         if not user.is_superuser and user.role not in ['admin', 'manager']:
@@ -117,10 +126,9 @@ class CategoryViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Food Categories'])
     def destroy(self, request, pk=None):
-        user = self.request.user
-        if not user.is_superuser and user.role != 'manager':
-            raise PermissionDenied("You do not have permission to perform this action.")
+        raise PermissionDenied("You do not have permission to perform this action.")
 
         queryset = self.get_queryset()
         category = get_object_or_404(queryset, pk=pk)
@@ -129,10 +137,14 @@ class CategoryViewSet(viewsets.ViewSet):
         return Response({f'message : Category {category} deleted.'}, status=status.HTTP_204_NO_CONTENT)
 
 
-class FoodItemViewSet(viewsets.ViewSet):
+class FoodItemViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    serializer_class = FoodItemSerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return FoodItem.objects.none()
         user = self.request.user
         if user.is_superuser:
         #     return FoodItem.objects.all()
@@ -140,22 +152,25 @@ class FoodItemViewSet(viewsets.ViewSet):
             return FoodItem.objects.select_related('tenant', 'category', 'created_by').all()
         return FoodItem.objects.select_related('tenant', 'category', 'created_by').filter(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Food Items'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = FoodItemSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Food Items'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         food_item = get_object_or_404(queryset, pk=pk)
         serializer = FoodItemSerializer(food_item)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Food Items'])
     def create(self, request):
         user = self.request.user
         if user.is_superuser:
             tenant_id = request.data.get('tenant')
-            category_id = request.data.get('category')  # Change from 'category_id' to 'category'
+            category_id = request.data.get('category')
             if not tenant_id:
                 raise PermissionDenied("Superuser must include tenant ID in request.")
             tenant = get_object_or_404(Tenant, id=tenant_id)
@@ -196,6 +211,7 @@ class FoodItemViewSet(viewsets.ViewSet):
         else:
             raise PermissionDenied("You do not have permission to perform this action.")
 
+    @swagger_auto_schema(tags=['Food Items'])
     def update(self, request, pk=None):
         user = self.request.user
         if not user.is_superuser and user.role not in ['admin', 'manager']:
@@ -229,9 +245,11 @@ class FoodItemViewSet(viewsets.ViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Food Items'])
     def partial_update(self, request, pk=None):
-        return self.update(request, pk)  # Reuse the update logic
+        return self.update(request, pk)
 
+    @swagger_auto_schema(tags=['Food Items'])
     def destroy(self, request, pk=None):
         user = self.request.user
         if not user.is_superuser and user.role not in ['admin', 'manager']:
@@ -251,11 +269,39 @@ class TableViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return Table.objects.none()
         user = self.request.user
         if user.is_superuser:
             return Table.objects.all()
         return Table.objects.filter(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Tables'])
+    def list(self, request):
+        return super().list(request)
+
+    @swagger_auto_schema(tags=['Tables'])
+    def create(self, request):
+        return super().create(request)
+
+    @swagger_auto_schema(tags=['Tables'])
+    def retrieve(self, request, pk=None):
+        return super().retrieve(request, pk)
+
+    @swagger_auto_schema(tags=['Tables'])
+    def update(self, request, pk=None):
+        return super().update(request, pk)
+
+    @swagger_auto_schema(tags=['Tables'])
+    def partial_update(self, request, pk=None):
+        return super().partial_update(request, pk)
+
+    @swagger_auto_schema(tags=['Tables'])
+    def destroy(self, request, pk=None):
+        return super().destroy(request, pk)
+
+    @swagger_auto_schema(tags=['Tables'])
     def perform_create(self, serializer):
         user = self.request.user  # Get the current user
         if user.is_superuser:
@@ -274,18 +320,16 @@ class TableViewSet(viewsets.ModelViewSet):
         # Save the updated tenant
         tenant.save()
 
+    @swagger_auto_schema(tags=['Tables'])
     def perform_update(self, serializer):
         super().perform_update(serializer)
         # No additional action required on tenant
 
+    @swagger_auto_schema(tags=['Tables'])
     def perform_destroy(self, instance):
         tenant = instance.tenant
         instance.delete()
 
         tenant.total_tables -= 1
         tenant.save()
-        
-        # Return a response message for deletion with status 200
-        # Return a response indicating the ID of the deleted food item
-        return Response({f'message : Table {Table} deleted.'}, status=status.HTTP_204_NO_CONTENT)
 

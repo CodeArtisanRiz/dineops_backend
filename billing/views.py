@@ -13,7 +13,8 @@ from datetime import datetime, time
 from django.utils import timezone
 from .models import BillPayment
 from .serializers import BillPaymentSerializer
-from utils.days_stayed_calc import calculate_days_stayed  # Import the function from utils
+from utils.days_stayed_calc import calculate_days_stayed 
+from drf_yasg.utils import swagger_auto_schema
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,10 @@ class BillViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # Handle AnonymousUser during schema generation
+        if getattr(self, 'swagger_fake_view', False) or not user.is_authenticated:
+            return Bill.objects.none()
+            
         # Check if the user is a superuser
         if user.is_superuser:
             # Return all bills for superusers
@@ -30,7 +35,12 @@ class BillViewSet(viewsets.ModelViewSet):
         # Return bills filtered by the tenant for regular users
         return Bill.objects.filter(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Billing'])
     def create(self, request, *args, **kwargs):
+        # Handle AnonymousUser during schema generation
+        if getattr(self, 'swagger_fake_view', False) or not request.user.is_authenticated:
+            return Response({}, status=status.HTTP_200_OK)
+            
         data = request.data
         tenant = request.user.tenant
         order_id = data.get('order_id', None)
@@ -248,6 +258,7 @@ class BillViewSet(viewsets.ModelViewSet):
         except Booking.DoesNotExist:
             return Response({"error": "Booking not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    @swagger_auto_schema(tags=['Billing'])
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = self.get_serializer(instance)
@@ -316,6 +327,7 @@ class BillViewSet(viewsets.ModelViewSet):
 
         return Response(response_data)
 
+    @swagger_auto_schema(tags=['Billing'])
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
         
@@ -478,6 +490,15 @@ class BillViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+    @swagger_auto_schema(tags=['Billing'])
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Billing'])
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Billing'])
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
@@ -500,6 +521,7 @@ class BillViewSet(viewsets.ModelViewSet):
             bill_data['order_details'] = self.get_order_details(bill)
         return Response(response_data)
 
+    
     def get_room_details(self, bill):
         room_details = []
         if bill.bill_type == 'HOT':
@@ -584,14 +606,32 @@ class BillPaymentViewSet(viewsets.ModelViewSet):
     queryset = BillPayment.objects.all()
     serializer_class = BillPaymentSerializer
 
+    @swagger_auto_schema(tags=['Billing'])
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
         # Save the payment and update the bill status
         bill_payment = serializer.save(created_by=request.user)
-        
         # Log the payment creation
         logger.info(f"Payment created for Bill ID {bill_payment.bill_id.id} with amount {bill_payment.paid_amount}")
-        
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @swagger_auto_schema(tags=['Billing'])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Billing'])
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Billing'])
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Billing'])
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Billing'])
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)

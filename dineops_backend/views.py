@@ -7,11 +7,9 @@ from rest_framework.decorators import api_view, permission_classes
 from django.conf import settings
 from django.http import FileResponse
 from django.http import HttpResponseForbidden
+from drf_yasg.utils import swagger_auto_schema
 
-def home(request):
-    # return HttpResponse("RMS Backend - Multi-Tenanant Accounts, Foods, POS, Analytics, and More!")
-    return render(request, 'home_ui.html')
-
+@swagger_auto_schema(method='get', tags=['System'])
 @api_view(['GET'])
 @permission_classes([IsSuperuser])  # Superuser Only
 def list_root_files(request):
@@ -29,6 +27,7 @@ def list_root_files(request):
     
     return JsonResponse({'items': items})
 
+@swagger_auto_schema(method='get', tags=['System'])
 @api_view(['GET'])
 @permission_classes([IsSuperuser])  # Superuser Only
 def download_db(request):
@@ -44,5 +43,10 @@ def download_db(request):
 
     return response
 
+def home(request):
+    # return HttpResponse("RMS Backend - Multi-Tenanant Accounts, Foods, POS, Analytics, and More!")
+    return render(request, 'home_ui.html')
+
 def download_db_page(request):
+    # Add a tag for UI-related endpoints
     return render(request, 'db_backup.html')

@@ -15,6 +15,7 @@ from decimal import Decimal
 from django.utils import timezone
 from foods.models import FoodItem
 from billing.models import Bill
+from drf_yasg.utils import swagger_auto_schema
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -23,10 +24,15 @@ class OrderViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = OrderSerializer
 
+    
     def get_queryset(self):
         # Use select_related and prefetch_related to optimize query performance
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return Order.objects.none()
         return Order.objects.filter(tenant=self.request.user.tenant).select_related('customer', 'room_id', 'booking_id').prefetch_related('food_items', 'tables')
 
+    @swagger_auto_schema(tags=['Orders'])
     def create(self, request):
         try:
             with transaction.atomic():
@@ -128,6 +134,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             logger.exception(f"Error creating order: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Orders'])
     def update(self, request, pk=None, partial=False):
         try:
             with transaction.atomic():
@@ -300,3 +307,19 @@ class OrderViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception(f"Error updating order ID {pk}: {e}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(tags=['Orders'])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Orders'])
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Orders'])
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Orders'])
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)

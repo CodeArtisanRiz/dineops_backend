@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
@@ -13,6 +14,8 @@ import json
 import logging
 import random
 import string
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
 from .models import Tenant, PhoneVerification
 from .serializers import UserSerializer, TenantSerializer, TableSerializer, PhoneVerificationSerializer
 from utils.permissions import IsSuperuser, IsTenantAdmin, IsManager
@@ -32,14 +35,18 @@ class TenantViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # Handle AnonymousUser during schema generation
+        if getattr(self, 'swagger_fake_view', False) or not user.is_authenticated:
+            return Tenant.objects.none()
+            
         if user.is_superuser:
             queryset = Tenant.objects.all()
-        elif user.role in ['admin', 'manager']:
+        elif hasattr(user, 'role') and user.role in ['admin', 'manager']:
             queryset = Tenant.objects.filter(id=user.tenant_id)
         else:
             queryset = Tenant.objects.none()
         
-        logger.debug(f"User: {user.username}, Role: {user.role}, Queryset: {queryset}")
+        logger.debug(f"User: {user.username}, Role: {getattr(user, 'role', 'no role')}, Queryset: {queryset}")
         return queryset
 
     def get_permissions(self):
@@ -51,6 +58,11 @@ class TenantViewSet(viewsets.ModelViewSet):
             permission_classes = [IsSuperuser]
         return [permission() for permission in permission_classes]
 
+    @swagger_auto_schema(tags=['Tenants'])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Tenants'])
     def create(self, request):
         user = self.request.user
         if not user.is_superuser:
@@ -96,6 +108,11 @@ class TenantViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Tenants'])
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Tenants'])
     def update(self, request, *args, **kwargs):
         user = self.request.user
         tenant = self.get_object()
@@ -135,6 +152,14 @@ class TenantViewSet(viewsets.ModelViewSet):
 
         return super().update(request, *args, **kwargs)
 
+    @swagger_auto_schema(tags=['Tenants'])
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Tenants'])
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
     def remove_tables(self, tenant, count):
         tables_to_delete = tenant.tables.all().order_by('-table_number')[:count]
         for table in tables_to_delete:
@@ -149,18 +174,31 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # Handle AnonymousUser during schema generation
+        if getattr(self, 'swagger_fake_view', False) or not user.is_authenticated:
+            return UserModel.objects.none()
+            
         if user.is_superuser:
             tenant_id = self.request.query_params.get('tenant_id')
             if tenant_id:
                 return self.queryset.filter(tenant_id=tenant_id)
             return self.queryset
-        elif user.role in ['admin', 'manager']:
+        elif hasattr(user, 'role') and user.role in ['admin', 'manager']:
             # Allow admin and managers to see all users (including customers) of their tenant
             return self.queryset.filter(tenant=user.tenant)
         else:
             # Allow users to see their own profile
             return self.queryset.filter(id=user.id)
 
+    @swagger_auto_schema(tags=['Users'])
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Users'])
+    def create(self, request, *args, **kwargs):
+        return super().create(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Users'])
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = UserModel.objects.get(id=kwargs.get('pk'))
@@ -182,6 +220,18 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+    @swagger_auto_schema(tags=['Users'])
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Users'])
+    def partial_update(self, request, *args, **kwargs):
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(tags=['Users'])
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         user = self.request.user
         role = self.request.data.get('role')
@@ -198,6 +248,7 @@ class UserViewSet(viewsets.ModelViewSet):
         else:
             serializer.save(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Users'])
     def perform_update(self, serializer):
         user = self.request.user
         role = self.request.data.get('role')
@@ -216,6 +267,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 
+@method_decorator(name='post', decorator=swagger_auto_schema(tags=['Users']))
 class CustomerRegistrationView(APIView):
     permission_classes = []
 
@@ -323,6 +375,7 @@ class CustomerRegistrationView(APIView):
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@method_decorator(name='post', decorator=swagger_auto_schema(tags=['Users']))
 class CustomerVerificationView(APIView):
     permission_classes = []
 
@@ -376,4 +429,17 @@ class CustomerVerificationView(APIView):
             return Response({
                 'error': 'Invalid or expired verification session'
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Tagged Token Views for Swagger UI grouping
+class TokenObtainPairViewWithTag(TokenObtainPairView):
+    @swagger_auto_schema(tags=['Authentication'])
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class TokenRefreshViewWithTag(TokenRefreshView):
+    @swagger_auto_schema(tags=['Authentication'])
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 

@@ -12,6 +12,7 @@ from datetime import datetime, date
 from rest_framework.views import APIView
 from decimal import Decimal
 # from dateutil.parser import parse as parse_date
+from drf_yasg.utils import swagger_auto_schema
 
 from .models import Room, ServiceCategory, Service, Booking, RoomBooking, CheckIn, CheckOut, ServiceUsage, GuestDetails
 from order.models import Order
@@ -22,26 +23,34 @@ from utils.get_or_create_user import get_or_create_user
 
 logger = logging.getLogger(__name__)
 
-class RoomViewSet(viewsets.ViewSet):
+class RoomViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = Room.objects.all()
+    serializer_class = RoomSerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return Room.objects.none()
         user = self.request.user
         if user.is_superuser:
             return Room.objects.all()
         return Room.objects.filter(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Hotel - Rooms'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = RoomSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Rooms'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         room = get_object_or_404(queryset, pk=pk)
         serializer = RoomSerializer(room)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Rooms'])
     def create(self, request):
         user = self.request.user
         tenant_name = user.tenant.tenant_name if not user.is_superuser else None
@@ -76,6 +85,7 @@ class RoomViewSet(viewsets.ViewSet):
                 )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Rooms'])
     def update(self, request, pk=None):
         user = self.request.user
         # Allow update if user is superuser, admin, or manager
@@ -107,6 +117,7 @@ class RoomViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Rooms'])
     def destroy(self, request, pk=None):
         user = self.request.user
         if not user.is_superuser:
@@ -118,6 +129,7 @@ class RoomViewSet(viewsets.ViewSet):
         room.delete()
         return Response({"message": f"Room - {room_number} deleted"}, status=status.HTTP_204_NO_CONTENT)
 
+    @swagger_auto_schema(tags=['Hotel - Rooms'])
     def partial_update(self, request, pk=None):
         user = self.request.user
         # Allow update if user is superuser, admin, or manager
@@ -149,10 +161,15 @@ class RoomViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ServiceCategoryViewSet(viewsets.ViewSet):
+class ServiceCategoryViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = ServiceCategory.objects.all()
+    serializer_class = ServiceCategorySerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return ServiceCategory.objects.none()
         user = self.request.user
         if user.is_superuser:
             queryset = ServiceCategory.objects.all()
@@ -162,18 +179,21 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
         logger.debug(f"ServiceCategory queryset for user {user.id}: {queryset}")
         return queryset
 
+    @swagger_auto_schema(tags=['Hotel - Service Categories'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = ServiceCategorySerializer(queryset, many=True)
         logger.debug(f"Serialized ServiceCategory data: {serializer.data}")
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Service Categories'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         service_category = get_object_or_404(queryset, pk=pk)
         serializer = ServiceCategorySerializer(service_category)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Service Categories'])
     def create(self, request):
         user = request.user
         serializer = ServiceCategorySerializer(data=request.data)
@@ -185,6 +205,7 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Service Categories'])
     def update(self, request, pk=None):
         queryset = self.get_queryset()
         service_category = get_object_or_404(queryset, pk=pk)
@@ -194,6 +215,7 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Service Categories'])
     def destroy(self, request, pk=None):
         queryset = self.get_queryset()
         service_category = get_object_or_404(queryset, pk=pk)
@@ -205,6 +227,7 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
             status=status.HTTP_204_NO_CONTENT
         )
 
+    @swagger_auto_schema(tags=['Hotel - Service Categories'])
     def partial_update(self, request, pk=None):
         queryset = self.get_queryset()
         service_category = get_object_or_404(queryset, pk=pk)
@@ -214,10 +237,15 @@ class ServiceCategoryViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class ServiceViewSet(viewsets.ViewSet):
+class ServiceViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return Service.objects.none()
         user = self.request.user
         if user.is_superuser:
             queryset = Service.objects.all()
@@ -227,18 +255,21 @@ class ServiceViewSet(viewsets.ViewSet):
         logger.debug(f"Service queryset for user {user.id}: {queryset}")
         return queryset
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = ServiceSerializer(queryset, many=True)
         logger.debug(f"Serialized Service data: {serializer.data}")
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         service = get_object_or_404(queryset, pk=pk)
         serializer = ServiceSerializer(service)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def create(self, request):
         user = request.user
         serializer = ServiceSerializer(data=request.data)
@@ -250,6 +281,7 @@ class ServiceViewSet(viewsets.ViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def update(self, request, pk=None):
         queryset = self.get_queryset()
         service = get_object_or_404(queryset, pk=pk)
@@ -259,6 +291,7 @@ class ServiceViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def destroy(self, request, pk=None):
         queryset = self.get_queryset()
         service = get_object_or_404(queryset, pk=pk)
@@ -270,6 +303,7 @@ class ServiceViewSet(viewsets.ViewSet):
             status=status.HTTP_204_NO_CONTENT
         )
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def partial_update(self, request, pk=None):
         queryset = self.get_queryset()
         service = get_object_or_404(queryset, pk=pk)
@@ -279,11 +313,16 @@ class ServiceViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class BookingViewSet(viewsets.ViewSet):
+class BookingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+    queryset = Booking.objects.all()
+    serializer_class = BookingSerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return Booking.objects.none()
         user = self.request.user
         if user.is_superuser:
             return Booking.objects.select_related('tenant').prefetch_related(
@@ -302,6 +341,7 @@ class BookingViewSet(viewsets.ViewSet):
         #     return Booking.objects.all()
         # return Booking.objects.filter(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Hotel - Bookings'])
     def create(self, request):
         user = request.user
         tenant = user.tenant
@@ -451,17 +491,20 @@ class BookingViewSet(viewsets.ViewSet):
             logger.error(f"Validation error: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Bookings'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = BookingSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Bookings'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         booking = get_object_or_404(queryset, pk=pk)
         serializer = BookingSerializer(booking)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Bookings'])
     def update(self, request, pk=None):
         queryset = self.get_queryset()
         booking = get_object_or_404(queryset, pk=pk)
@@ -500,6 +543,7 @@ class BookingViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Bookings'])
     def partial_update(self, request, pk=None):
         queryset = self.get_queryset()
         booking = get_object_or_404(queryset, pk=pk)
@@ -664,26 +708,38 @@ class BookingViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Bookings'])
     def destroy(self, request, pk=None):
         queryset = self.get_queryset()
         booking = get_object_or_404(queryset, pk=pk)
         booking.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class RoomBookingViewSet(viewsets.ViewSet):
+class RoomBookingViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = RoomBooking.objects.all()
+    serializer_class = RoomBookingSerializer
 
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return RoomBooking.objects.none()
+        return RoomBooking.objects.all()
+
+    @swagger_auto_schema(tags=['Hotel - Room Bookings'])
     def list(self, request):
-        queryset = RoomBooking.objects.all()
+        queryset = self.get_queryset()
         serializer = RoomBookingSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Room Bookings'])
     def retrieve(self, request, pk=None):
-        queryset = RoomBooking.objects.all()
+        queryset = self.get_queryset()
         room_booking = get_object_or_404(queryset, pk=pk)
         serializer = RoomBookingSerializer(room_booking)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Room Bookings'])
     def create(self, request):
         serializer = RoomBookingSerializer(data=request.data)
         if serializer.is_valid():
@@ -691,8 +747,19 @@ class RoomBookingViewSet(viewsets.ViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Room Bookings'])
     def update(self, request, pk=None):
-        queryset = RoomBooking.objects.all()
+        queryset = self.get_queryset()
+        room_booking = get_object_or_404(queryset, pk=pk)
+        serializer = RoomBookingSerializer(room_booking, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @swagger_auto_schema(tags=['Hotel - Room Bookings'])
+    def partial_update(self, request, pk=None):
+        queryset = self.get_queryset()
         room_booking = get_object_or_404(queryset, pk=pk)
         serializer = RoomBookingSerializer(room_booking, data=request.data, partial=True)
         if serializer.is_valid():
@@ -700,21 +767,28 @@ class RoomBookingViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Room Bookings'])
     def destroy(self, request, pk=None):
-        queryset = RoomBooking.objects.all()
+        queryset = self.get_queryset()
         room_booking = get_object_or_404(queryset, pk=pk)
         room_booking.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class CheckInViewSet(viewsets.ViewSet):
+class CheckInViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = CheckIn.objects.all()
+    serializer_class = CheckInSerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return CheckIn.objects.none()
         user = self.request.user
         if user.is_superuser:
             return CheckIn.objects.all()
         return CheckIn.objects.filter(room_booking__booking__tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Hotel - Check-ins'])
     def create(self, request):
         try:
             # Check if the request is JSON or form-data
@@ -898,41 +972,46 @@ class CheckInViewSet(viewsets.ViewSet):
             logger.exception("An error occurred during check-in.")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @swagger_auto_schema(tags=['Hotel - Check-ins'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = CheckInSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Check-ins'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         check_in = get_object_or_404(queryset, pk=pk)
         serializer = CheckInSerializer(check_in)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Check-ins'])
     def update(self, request, pk=None):
-        queryset = self.get_queryset()
-        check_in = get_object_or_404(queryset, pk=pk)
-        serializer = CheckInSerializer(check_in, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return super().update(request, pk)
 
+    @swagger_auto_schema(tags=['Hotel - Check-ins'])
+    def partial_update(self, request, pk=None):
+        return super().partial_update(request, pk)
+
+    @swagger_auto_schema(tags=['Hotel - Check-ins'])
     def destroy(self, request, pk=None):
-        queryset = self.get_queryset()
-        check_in = get_object_or_404(queryset, pk=pk)
-        check_in.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return super().destroy(request, pk)
 
-class CheckOutViewSet(viewsets.ViewSet):
+class CheckOutViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = CheckOut.objects.all()
+    serializer_class = CheckOutSerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return CheckOut.objects.none()
         user = self.request.user
         if user.is_superuser:
             return CheckOut.objects.all()
         return CheckOut.objects.filter(tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Hotel - Check-outs'])
     def create(self, request):
         try:
             booking_id = request.data.get('booking_id')
@@ -1015,18 +1094,21 @@ class CheckOutViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.exception("An error occurred during check-out.")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+    
+    @swagger_auto_schema(tags=['Hotel - Check-outs'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = CheckOutSerializer(queryset, many=True)
         return Response(serializer.data)
-
+    
+    @swagger_auto_schema(tags=['Hotel - Check-outs'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         check_out = get_object_or_404(queryset, pk=pk)
         serializer = CheckOutSerializer(check_out)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Check-outs'])
     def update(self, request, pk=None):
         queryset = self.get_queryset()
         check_out = get_object_or_404(queryset, pk=pk)
@@ -1036,33 +1118,46 @@ class CheckOutViewSet(viewsets.ViewSet):
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Check-outs'])
+    def partial_update(self, request, pk=None):
+        return super().partial_update(request, pk)
+
+    @swagger_auto_schema(tags=['Hotel - Check-outs'])
     def destroy(self, request, pk=None):
         queryset = self.get_queryset()
         check_out = get_object_or_404(queryset, pk=pk)
         check_out.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-class ServiceUsageViewSet(viewsets.ViewSet):
+class ServiceUsageViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
+    queryset = ServiceUsage.objects.all()
+    serializer_class = ServiceUsageSerializer
 
     def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            # Return an empty queryset for schema generation
+            return ServiceUsage.objects.none()
         user = self.request.user
         if user.is_superuser:
             return ServiceUsage.objects.all()
         # Filter ServiceUsage by the tenant of the booking
         return ServiceUsage.objects.filter(room_id__booking__tenant=user.tenant)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def list(self, request):
         queryset = self.get_queryset()
         serializer = ServiceUsageSerializer(queryset, many=True)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def retrieve(self, request, pk=None):
         queryset = self.get_queryset()
         service_usage = get_object_or_404(queryset, pk=pk)
         serializer = ServiceUsageSerializer(service_usage)
         return Response(serializer.data)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def create(self, request):
         service_id = request.data.get('service_id')
         service = get_object_or_404(Service, id=service_id)
@@ -1106,6 +1201,7 @@ class ServiceUsageViewSet(viewsets.ViewSet):
             return Response(response_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def update(self, request, pk=None):
         queryset = self.get_queryset()
         service_usage = get_object_or_404(queryset, pk=pk)
@@ -1114,7 +1210,12 @@ class ServiceUsageViewSet(viewsets.ViewSet):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @swagger_auto_schema(tags=['Hotel - Services'])
+    def partial_update(self, request, pk=None):
+        return super().partial_update(request, pk)  
 
+    @swagger_auto_schema(tags=['Hotel - Services'])
     def destroy(self, request, pk=None):
         queryset = self.get_queryset()
         service_usage = get_object_or_404(queryset, pk=pk)
