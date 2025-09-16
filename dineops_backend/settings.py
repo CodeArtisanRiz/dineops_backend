@@ -66,6 +66,8 @@ INSTALLED_APPS = [
     'hotel',
     # Billing app for billing management
     'billing',
+    # Cache app for Redis integration
+    'cache',
 ]
 
 SWAGGER_SETTINGS = {
@@ -239,8 +241,14 @@ LOGGING = {
 
 pymysql.install_as_MySQLdb()
 
+# Redis Cache Configuration
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f"redis://{config('REDIS_HOST', default='127.0.0.1')}:{config('REDIS_PORT', default=6379, cast=int)}/1",
     }
 }
+
+# Session Configuration with Redis
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+SESSION_CACHE_ALIAS = 'default'

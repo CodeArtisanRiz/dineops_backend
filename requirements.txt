@@ -13,6 +13,7 @@ gunicorn
 whitenoise
 pymysql
 python-dotenv
+redis
 
 # firebase-admin
 django-firebase-auth
