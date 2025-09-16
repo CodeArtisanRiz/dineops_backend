@@ -49,18 +49,12 @@ schema_view = get_schema_view(
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('root-files/', views.list_root_files, name='list_root_files'),
-    path('db/', views.download_db, name='download_database'),
-    path('api/backup/', views.download_db_page, name='download_db_page'),
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls')),  # Include accounts app URLs
     path('api/foods/', include('foods.urls')),  # Include foods app URLs
     path('api/orders/', include('order.urls')),  # Include order app URLs
     path('api/hotel/', include('hotel.urls')),  # Include hotel app URLs
     path('api/billing/', include('billing.urls')),  # Include billing app URLs
-    # path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    # path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    # path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('docs/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
